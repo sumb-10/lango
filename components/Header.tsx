@@ -24,7 +24,7 @@ interface HeaderProps {
 export function Header({ variant = 'learning' }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
-  const { user, profile, logout } = useAuth();
+  const { user, profile, login, logout } = useAuth();
 
   const handleUserAreaClick = () => {
     // 모바일에서는 Sheet 열기
@@ -219,31 +219,59 @@ export function Header({ variant = 'learning' }: HeaderProps) {
           </div>
 
           {/* User Info bottom card */}
-          <div className="absolute bottom-8 left-6 right-6">
-            <div className="p-4 bg-surface rounded-lg border border-[#E6E0D6]">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12 border-2 border-[#76B88A]">
-                  <AvatarFallback className="bg-[#76B88A] text-white">
-                    {displayInitial}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div
-                    className="text-[#1A1A1A]"
-                    style={{ fontSize: '14px', fontWeight: 600 }}
-                  >
-                    {displayName}
+            <div className="absolute bottom-8 left-6 right-6">
+              <div className="p-4 bg-surface rounded-lg border border-[#E6E0D6]">
+                {user ? (
+                  // 🔹 로그인 된 경우: 기존 유저 정보 카드
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 border-2 border-[#76B88A]">
+                      <AvatarFallback className="bg-[#76B88A] text-white">
+                        {displayInitial}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div
+                        className="text-[#1A1A1A]"
+                        style={{ fontSize: '14px', fontWeight: 600 }}
+                      >
+                        {displayName}
+                      </div>
+                      <div
+                        className="text-[#5E5E5E]"
+                        style={{ fontSize: '12px' }}
+                      >
+                        {displayPlan}
+                      </div>
+                    </div>
                   </div>
-                  <div
-                    className="text-[#5E5E5E]"
-                    style={{ fontSize: '12px' }}
-                  >
-                    {displayPlan}
+                ) : (
+                  // 🔹 로그인 안 된 경우: 로그인 CTA 카드
+                  <div className="space-y-3">
+                    <div
+                      className="text-[#1A1A1A]"
+                      style={{ fontSize: '14px', fontWeight: 600 }}
+                    >
+                      로그인하고 나만의 학습 공간을 만들어 보세요
+                    </div>
+                    <div
+                      className="text-[#5E5E5E]"
+                      style={{ fontSize: '12px' }}
+                    >
+                      진행 상황을 저장하고, 나에게 맞는 단어장과 피드백을 받아볼 수 있어요.
+                    </div>
+                    <Button
+                      className="w-full mt-2"
+                      variant="outline"
+                      onClick={login}
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      Google로 로그인
+                    </Button>
                   </div>
-                </div>
+                )}
               </div>
             </div>
-          </div>
+
         </SheetContent>
       </Sheet>
     </>

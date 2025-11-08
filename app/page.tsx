@@ -2,23 +2,12 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BookOpen, MessageSquare, TrendingUp, Award } from 'lucide-react';
+import { Header } from "@/components/Header";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-white font-bold">
-              L
-            </div>
-            <h1 className="text-2xl font-bold">Lango</h1>
-          </div>
-          <Link href="/dashboard">
-            <Button>대시보드</Button>
-          </Link>
-        </div>
-      </header>
+      <Header variant="dashboard" />
 
       <main className="container mx-auto px-4 py-16">
         <section className="text-center mb-16">
