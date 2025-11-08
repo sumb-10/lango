@@ -1,3 +1,5 @@
+// app/api/feedback/rubric/route.ts
+
 import { createClient } from '@/lib/supabase/server'
 import { createChatCompletion } from '@/lib/openai'
 import { SYSTEM_PROMPTS, createRubricPrompt } from '@/lib/prompts'

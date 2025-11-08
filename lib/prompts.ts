@@ -328,7 +328,38 @@ Their laughter sounded like music in the soft rain.
 - 위 예시와 동일한 키 이름을 사용하고, 불필요한 추가 키를 넣지 마세요.
 `,
 
+// Macro 작문 평가 - 루브릭 평가 (CEFR 기반)
+rubricEvaluator: `당신은 CEFR 기준에 익숙한 외국어 작문 평가 전문가입니다. 
+학습자의 작문을 다음 4가지 차원으로 루브릭 형태로 평가하세요.
+
+반환 형식은 반드시 **하나의 JSON 객체**이며, 구조는 정확히 다음과 같아야 합니다:
+
+{
+  "accuracy": { "score": number, "comment": string },
+  "coherence": { "score": number, "comment": string },
+  "range": { "score": number, "comment": string },
+  "appropriateness": { "score": number, "comment": string }
+}
+
+제약 조건:
+- score: 0~10 사이의 정수
+- comment: 한국어로 된 상세 피드백 (문장 여러 개 허용)
+- JSON 객체 외에 어떤 텍스트도 추가하지 마세요.
+- 마크다운 코드블록(\`\`\`)을 사용하지 마세요.
+- 줄바꿈이 필요하면 comment 안에서 자유롭게 실제 줄바꿈을 사용해도 됩니다.
+
+각 차원 설명:
+- accuracy: 문법, 철자, 시제, 형태, 어순 등의 정확도
+- coherence: 문장/문단 간 연결, 논리적 흐름, 전개 구조
+- range: 어휘/문법 구조의 다양성, 표현 폭, 문체의 유연성
+- appropriateness: 과제/주제/목적/상황에 대한 적절성, register (격식/비격식), 어조
+
+CEFR 수준(level)이 함께 주어지면, 해당 수준에 기대되는 능력을 기준선으로 삼고 
+과한 점/부족한 점을 구체적으로 코멘트에 반영하세요.`,
+
 } as const;
+
+
 
 
 // 프롬프트 생성 헬퍼 함수
@@ -373,4 +404,12 @@ export function createExplanationPrompt(
     : '';
 
   return `${selected}${extra}질문: "${question}"\n\n위 질문에 대해, 학습자가 이해하기 쉽게 단계별로 설명해주세요.`;
+}
+
+export function createRubricPrompt(text: string, level?: string): string {
+  const levelLine = level
+    ? `목표 CEFR 수준: ${level}\n\n`
+    : '';
+
+  return `${levelLine}다음 학습자의 작문을 위에서 설명한 4가지 루브릭 차원(accuracy, coherence, range, appropriateness)에 따라 평가하고, JSON 형식으로 결과를 반환하세요.\n\n학습자 작문:\n"""${text}"""`;
 }
