@@ -18,6 +18,59 @@ import {
 } from 'lucide-react';
 import type { LessonJsonV1, LessonSection, LessonBlock } from '@/types/store_material';
 import ReactMarkdown from 'react-markdown'; // 마크다운 렌더용 (설치 필요)
+import remarkGfm from 'remark-gfm';
+
+
+function MarkdownBlock({ content, fontSize }: { content: string; fontSize: number }) {
+  const base = fontSize; // 예: 14, 15 같은 숫자(px)
+
+  return (
+    <div className="space-y-5 prose prose-sm max-w-none">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h2: ({ node, ...props }) => (
+            <h2
+              className="font-semibold text-ink mt-2"
+              style={{ fontSize: base + 4 }}
+              {...props}
+            />
+          ),
+          h3: ({ node, ...props }) => (
+            <h3
+              className="font-semibold text-ink mt-1.5"
+              style={{ fontSize: base + 2 }}
+              {...props}
+            />
+          ),
+          p: ({ node, ...props }) => (
+            <p
+              className="text-ink"
+              style={{ fontSize: base }}
+              {...props}
+            />
+          ),
+          li: ({ node, ...props }) => (
+            <li
+              className="text-ink"
+              style={{ fontSize: base }}
+              {...props}
+            />
+          ),
+          strong: ({ node, ...props }) => (
+            <strong
+              className="font-semibold"
+              style={{ fontSize: base }}
+              {...props}
+            />
+          )
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 interface LessonBodyProps {
   lesson: LessonJsonV1;
@@ -34,83 +87,78 @@ function LessonBody({ lesson, fontSize, onSentenceClick }: LessonBodyProps) {
             {section.label}
           </h3>
 
-          {/* 섹션 타입별 렌더 */}
-          {section.type === 'vocabulary' && (
-            <div className="space-y-2">
-              {section.blocks
-                .filter((b): b is Extract<LessonBlock, { type: 'vocab_item' }> => b.type === 'vocab_item')
-                .map((vocab) => (
+          {/* 섹션 안 블록들을 "타입별"로 렌더 */}
+          <div className="space-y-5 ">
+            {section.blocks.map((block, idx) => {
+              // 1) 마크다운 블록
+              if (block.type === 'markdown') {
+                return (
+                  <MarkdownBlock
+                    key={`md-${idx}`}
+                    content={block.content}
+                    fontSize={fontSize}
+                  />
+                );
+              }
+
+              // 2) 어휘 블록
+              if (block.type === 'vocab_item') {
+                return (
                   <div
-                    key={vocab.word}
+                    key={block.word}
                     className="flex flex-col rounded-md border border-lango bg-background px-3 py-2"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span
                         className="font-semibold text-ink"
-                        style={{ fontSize: fontSize }}
+                        style={{ fontSize }}
                       >
-                        {vocab.word}
+                        {block.word}
                       </span>
                       <span className="text-xs text-muted-ink">
-                        {vocab.translation}
+                        {block.translation}
                       </span>
                     </div>
-                    {vocab.note && (
+                    {block.note && (
                       <p className="text-xs text-muted-ink mt-1">
-                        {vocab.note}
+                        {block.note}
                       </p>
                     )}
-                    {vocab.example && (
+                    {block.example && (
                       <button
                         type="button"
                         className="mt-1 text-xs text-primary text-left underline-offset-2 hover:underline"
-                        onClick={() => onSentenceClick(vocab.example!)}
+                        onClick={() => onSentenceClick(block.example!)}
                       >
-                        예문: {vocab.example}
+                        예문: {block.example}
                       </button>
                     )}
                   </div>
-                ))}
-            </div>
-          )}
+                );
+              }
 
-          {(section.type === 'grammar' ||
-            section.type === 'conversation' ||
-            section.type === 'reading') && (
-            <div className="space-y-3">
-              {section.blocks
-                .filter((b): b is Extract<LessonBlock, { type: 'markdown' }> => b.type === 'markdown')
-                .map((block, idx) => (
-                  <div
-                    key={idx}
-                    className="prose prose-sm max-w-none"
-                    style={{ fontSize }}
-                  >
-                    <ReactMarkdown>{block.content}</ReactMarkdown>
-                  </div>
-                ))}
-            </div>
-          )}
-
-          {section.type === 'exercise' && (
-            <div className="space-y-4">
-              {section.blocks
-                .filter((b): b is Extract<LessonBlock, { type: 'question' }> => b.type === 'question')
-                .map((q) => (
+              // 3) 연습문제 블록 (exercise 섹션에서 주로 사용)
+              if (block.type === 'question') {
+                return (
                   <QuestionBlock
-                    key={q.questionId}
-                    question={q}
+                    key={block.questionId}
+                    question={block}
                     fontSize={fontSize}
                     onSentenceClick={onSentenceClick}
                   />
-                ))}
-            </div>
-          )}
+                );
+              }
+
+              // 혹시 모를 나머지 타입은 렌더하지 않음
+              return null;
+            })}
+          </div>
         </div>
       ))}
     </div>
   );
 }
+
 
 interface QuestionBlockProps {
   question: Extract<LessonBlock, { type: 'question' }>;
