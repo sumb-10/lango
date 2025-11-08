@@ -14,9 +14,18 @@ import {
     PenTool,
     BookOpen,
     CreditCard,
+    MoreVertical,      
+    FolderPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
+
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 type MaterialStatus = "uploaded" | "processing" | "ready";
 
@@ -198,6 +207,14 @@ export default function DashboardPageClient() {
         );
     }
 
+    const handleCreateFolderClick = () => {
+    // 나중에 여기서 폴더 생성 다이얼로그 or API 연결
+    toast.info("폴더 생성은 곧 /materials 페이지와 함께 연결할 예정입니다.");
+    // 우선은 폴더 관리 페이지로 보내버리는 것도 UX상 괜찮음
+    // router.push("/materials");
+    };
+
+
     return (
         <div className="min-h-screen flex bg-bg">
             <div className="flex-1 flex flex-col">
@@ -233,7 +250,18 @@ export default function DashboardPageClient() {
                 <main className="flex-1 px-4 md:px-8 py-6 overflow-auto">
                     <div className="container">
                         {/* Quick Actions */}
-                        <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <button
+                                onClick={handleCreateFolderClick}
+                                className="p-6 bg-surface border-2 border-dashed border-primary/40 hover:border-primary/60 rounded-lg transition-all text-left group"
+                            >
+                                <div className="w-10 h-10 rounded-lg bg-highlight flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+                                <FolderPlus className="h-6 w-6 text-primary" />
+                                </div>
+                                <h3 className="font-semibold text-ink mb-1">새 폴더</h3>
+                                <p className="text-sm text-muted-ink">폴더를 만들어 교재를 디렉토리 방식으로 정리하세요</p>
+                            </button>
+
                             <button
                                 onClick={() => setShowUploadModal(true)}
                                 className="p-6 bg-surface border-2 border-dashed border-primary/40 hover:border-primary/60 rounded-lg transition-all text-left group"
@@ -243,13 +271,13 @@ export default function DashboardPageClient() {
                                 <p className="text-sm text-muted-ink">TXT 파일을 업로드하여 학습을 시작하세요</p>
                             </button>
 
-                            <Link href="/essay" className="block p-6 bg-surface border border-lango hover:border-primary/60 rounded-lg transition-all group">
+                            <Link href="/essay" className="block p-6 bg-surface border-2 border-dashed border-primary/40 hover:border-primary/60 rounded-lg transition-all group">
                                 <PenTool className="h-8 w-8 text-primary mb-3" />
                                 <h3 className="font-semibold text-ink mb-1">긴글 작문 평가</h3>
                                 <p className="text-sm text-muted-ink">작문을 제출하고 AI 평가를 받으세요</p>
                             </Link>
 
-                            <Link href="/vocabulary" className="block p-6 bg-surface border border-lango hover:border-primary/60 rounded-lg transition-all group">
+                            <Link href="/vocabulary" className="block p-6 bg-surface border-2 border-dashed border-primary/40 hover:border-primary/60 rounded-lg transition-all group">
                                 <BookOpen className="h-8 w-8 text-primary mb-3" />
                                 <h3 className="font-semibold text-ink mb-1">단어장 복습</h3>
                                 <p className="text-sm text-muted-ink">{stats?.vocabulary.dueForReview ?? 0}개의 단어가 복습 대기 중</p>
@@ -301,13 +329,59 @@ export default function DashboardPageClient() {
                                         </div>
 
                                         {/* Status Badge */}
-                                        <div className="absolute top-2 right-2">
+                                        <div className="absolute top-2 left-2">
                                             <span className="px-2 py-0.5 text-xs bg-white/80 text-muted-ink border border-lango rounded">
                                                 {material.status === "uploaded" && "대기중"}
                                                 {material.status === "processing" && "처리중"}
                                                 {material.status === "ready" && "완료"}
                                             </span>
                                         </div>
+
+                                        {/* Context Menu (⋮) */}
+                                        <div className="absolute top-2 right-2">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => e.stopPropagation()} // 카드 hover/클릭 막기
+                                                className="p-1 rounded-full bg-white/80 hover:bg-white shadow-sm"
+                                            >
+                                                <MoreVertical className="h-4 w-4 text-muted-ink" />
+                                            </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-40">
+                                            <DropdownMenuItem
+                                                onClick={(e) => {
+                                                e.stopPropagation();
+                                                // TODO: 이름 변경 다이얼로그 연결
+                                                toast.info("이름 변경 기능은 곧 추가될 예정입니다.");
+                                                }}
+                                            >
+                                                이름 변경
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={(e) => {
+                                                e.stopPropagation();
+                                                // TODO: '폴더로 이동' 다이얼로그나 /materials로 라우팅
+                                                toast.info("폴더로 이동 기능은 폴더 페이지와 연동 예정입니다.");
+                                                }}
+                                            >
+                                                이동
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className="text-red-600"
+                                                onClick={(e) => {
+                                                e.stopPropagation();
+                                                // TODO: 실제 삭제 API 연결
+                                                toast.info("삭제 기능은 추후 안전장치와 함께 연결할 예정입니다.");
+                                                }}
+                                            >
+                                                삭제
+                                            </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        </div>
+
 
                                         {/* Action Buttons Overlay */}
                                         <div className="absolute inset-0 bg-ink/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-4">

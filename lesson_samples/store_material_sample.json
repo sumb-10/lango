@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "id": "lesson-001",
+  "title": "Weekend Plans with Friends",
+  "cefrLevel": "B1",
+  "estimatedMinutes": 40,
+  "sections": [
+    {
+      "id": "vocab",
+      "label": "필수어휘",
+      "type": "vocabulary",
+      "blocks": [
+        {
+          "type": "vocab_item",
+          "word": "hang out",
+          "translation": "어울리다, 놀다",
+          "note": "친구들과 시간을 보내다라는 뜻으로 많이 씀",
+          "example": "Let's hang out this weekend! 😄"
+        },
+        {
+          "type": "vocab_item",
+          "word": "plan",
+          "translation": "계획",
+          "example": "Do you have any plans for Saturday?"
+        }
+      ]
+    },
+    {
+      "id": "grammar",
+      "label": "문법",
+      "type": "grammar",
+      "blocks": [
+        {
+          "type": "markdown",
+          "content": "### 현재진행형으로 미래 계획 말하기\n\n- **I'm meeting** my friends this Saturday.\n- **We're having** dinner at 7 pm.\n\n➡️ 이미 정해진 **약속/계획**은 현재진행형으로 자주 표현해요."
+        }
+      ]
+    },
+    {
+      "id": "conversation",
+      "label": "회화 표현",
+      "type": "conversation",
+      "blocks": [
+        {
+          "type": "markdown",
+          "content": "### 대화 예문\n\n> A: Hey, do you have any plans for this weekend?\n> B: Yeah, **I'm hanging out** with my friends on Saturday.\n> A: Nice! That **sounds fun** 🎉"
+        }
+      ]
+    },
+    {
+      "id": "reading",
+      "label": "읽기 예문",
+      "type": "reading",
+      "blocks": [
+        {
+          "type": "markdown",
+          "content": "## Reading\n\nEmma has a busy weekend. On Saturday, **she is meeting** her friends at a café..."
+        }
+      ]
+    },
+    {
+      "id": "exercises",
+      "label": "연습문제 / 과제",
+      "type": "exercise",
+      "blocks": [
+        {
+          "type": "question",
+          "questionId": "q1",
+          "layout": "inline",
+          "prompt": "다음 문장을 영어로 자연스럽게 써 보세요:\n\n> 이번 주말에 친구들이랑 놀 거야.",
+          "inputType": "textarea",
+          "modelAnswer": "I'm hanging out with my friends this weekend.",
+          "explanation": "이미 정해진 계획이므로 현재진행형 *I'm hanging out* 을 사용하면 자연스럽습니다.",
+          "feedback": {
+            "mode": "openai",
+            "instruction": "학생 답변과 모범답안을 비교해서, 문법/표현/자연스러움에 대해 한국어로 2~3문장으로 짧게 피드백해줘."
+          }
+        },
+        {
+          "type": "question",
+          "questionId": "q2",
+          "layout": "inline",
+          "prompt": "대화를 완성해 보세요.\n\n> A: Do you have any plans for Sunday?\n> B: __________________________.",
+          "inputType": "textarea",
+          "modelAnswer": "I'm visiting my grandparents.",
+          "feedback": {
+            "mode": "openai",
+            "instruction": "학생의 답이 자연스러운지, 시제와 전치사를 중심으로 간단히 코멘트해줘."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -15,31 +15,44 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import type { LessonJsonV1 } from '@/types/store_material';
+
 
 interface Props {
   material: any;
   worksheet: any;
   chunks: any[];
+  lessonJson?: LessonJsonV1 | null;
 }
 
-export default function LearningView({ material, worksheet, chunks }: Props) {
+export default function LearningView({ material, worksheet, chunks, lessonJson }: Props) {
   const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
   const [selectedText, setSelectedText] = useState('');
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
-  const currentChunk = chunks[currentChunkIndex];
-  const content = currentChunk?.content ?? '';
+  const isStoreLesson =
+    material?.source === 'store' && material?.file_type === 'lesson-json-v1';
+
+  const currentChunk = !isStoreLesson
+    ? chunks[currentChunkIndex]
+    : null;
+
+  const content = !isStoreLesson
+    ? currentChunk?.content ?? ''
+    : ''; // lesson 모드에선 content는 안 씀
 
   const progress =
-    chunks.length > 0
+    !isStoreLesson && chunks.length > 0
       ? Math.round(((currentChunkIndex + 1) / chunks.length) * 100)
       : 0;
 
   const handlePrevChunk = () => {
+    if (isStoreLesson) return;
     setCurrentChunkIndex((prev) => Math.max(0, prev - 1));
   };
 
   const handleNextChunk = () => {
+    if (isStoreLesson) return;
     setCurrentChunkIndex((prev) =>
       Math.min(chunks.length - 1, prev + 1),
     );
@@ -58,14 +71,16 @@ export default function LearningView({ material, worksheet, chunks }: Props) {
           <div className="hidden md:grid md:grid-cols-[1fr_400px] lg:grid-cols-[1fr_480px] gap-6 h-[calc(100vh-180px)]">
             {/* 좌측: 새 디자인 DocumentViewer */}
             <DocumentViewer
+              mode={isStoreLesson ? 'lesson' : 'chunk'}      
+              lesson={isStoreLesson ? lessonJson : undefined} 
               content={content}
               title={material.title}
               author={material.author}
-              cefrLevel={worksheet?.cefr_level}
+              cefrLevel={worksheet?.cefr_level ?? lessonJson?.cefrLevel}
               progress={progress}
               onSentenceSelect={handleSentenceSelect}
-              currentChunkIndex={currentChunkIndex}
-              totalChunks={chunks.length}
+              currentChunkIndex={isStoreLesson ? 0 : currentChunkIndex}
+              totalChunks={isStoreLesson ? 1 : chunks.length}
               onPrevChunk={handlePrevChunk}
               onNextChunk={handleNextChunk}
             />
@@ -84,15 +99,17 @@ export default function LearningView({ material, worksheet, chunks }: Props) {
             <Card className="h-[calc(100vh-220px)] overflow-hidden">
               <CardContent className="h-full overflow-auto pt-4">
                 <DocumentViewer
+                  mode={isStoreLesson ? 'lesson' : 'chunk'}
+                  lesson={isStoreLesson ? lessonJson : undefined}
                   content={content}
                   title={material.title}
                   author={material.author}
-                  cefrLevel={worksheet?.cefr_level}
+                  cefrLevel={worksheet?.cefr_level ?? lessonJson?.cefrLevel}
                   progress={progress}
                   onSentenceSelect={handleSentenceSelect}
                   onMobileSheetOpen={() => setMobileSheetOpen(true)}
-                  currentChunkIndex={currentChunkIndex}
-                  totalChunks={chunks.length}
+                  currentChunkIndex={isStoreLesson ? 0 : currentChunkIndex}
+                  totalChunks={isStoreLesson ? 1 : chunks.length}
                   onPrevChunk={handlePrevChunk}
                   onNextChunk={handleNextChunk}
                 />

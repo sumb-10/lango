@@ -1,3 +1,5 @@
+//components/FolderManager.tsx
+
 'use client';
 
 import { useState } from 'react';

@@ -194,6 +194,53 @@ const [normalizedSelectedText, setNormalizedSelectedText] = useState<string>('')
       autoType = 'interpretation';
       autoLabel = '문장 해석';
     }
+    // 👉 [문제 풀이 피드백 요청] prefix 처리 → 채팅 탭에서 자동 질문
+  else if (selectedText.startsWith('[문제 풀이 피드백 요청]')) {
+    // prefix 제거
+    const content = selectedText.replace(/^\[문제 풀이 피드백 요청\]\s*/, '');
+
+    // 선택된 문장 영역에는 굳이 안 보여줘도 되면 빈 문자열로
+    setNormalizedSelectedText('');
+    setQuickLabel(null);
+    setQuickAnswer(null);
+
+    // 탭을 채팅으로 전환
+    setActiveTab('chat');
+
+    // 채팅 자동 전송
+    (async () => {
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content,
+        timestamp: new Date(),
+      };
+
+      setChatMessages((prev) => [...prev, userMessage]);
+      setChatInput(''); // 혹시 남아 있던 입력값 초기화
+
+      try {
+        const answer = await callMicroFeedback(
+          'question',
+          content,              // 질문 + 내 답변 전체를 inputText로 보냄
+          undefined             // context는 여기선 생략 (원하면 question.prompt만 따로 파싱해서 넣어도 됨)
+        );
+
+        const aiMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: answer,
+          timestamp: new Date(),
+        };
+        setChatMessages((prev) => [...prev, aiMessage]);
+      } catch {
+        // 에러 토스트는 callMicroFeedback 안에서 처리
+      }
+    })();
+
+    // 이 분기에서는 밑에 autoType 로직을 타지 않도록 바로 return
+    return;
+  }
 
     setNormalizedSelectedText(text);
 
@@ -234,19 +281,33 @@ const [normalizedSelectedText, setNormalizedSelectedText] = useState<string>('')
         <TabsList className="w-full justify-start rounded-none border-b border-lango bg-transparent p-0 h-auto">
           <TabsTrigger
             value="question"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
+            className="
+              rounded-none border-b-2 border-transparent
+              data-[state=active]:border-primary
+              data-[state=active]:bg-transparent
+              px-4 py-3
+              focus-visible:ring-0 focus-visible:ring-offset-0
+            "
           >
             <HelpCircle className="h-4 w-4 mr-2" />
             빠른 설명
           </TabsTrigger>
+
           <TabsTrigger
             value="chat"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
+            className="
+              rounded-none border-b-2 border-transparent
+              data-[state=active]:border-primary
+              data-[state=active]:bg-transparent
+              px-4 py-3
+              focus-visible:ring-0 focus-visible:ring-offset-0
+            "
           >
             <MessageCircle className="h-4 w-4 mr-2" />
             채팅으로 질문하기
           </TabsTrigger>
         </TabsList>
+
 
         <div className="flex-1 overflow-auto">
           {/* 질문/설명 탭 */}

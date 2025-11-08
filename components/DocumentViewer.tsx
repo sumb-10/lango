@@ -16,8 +16,169 @@ import {
   MessageSquare,
   BookOpen,
 } from 'lucide-react';
+import type { LessonJsonV1, LessonSection, LessonBlock } from '@/types/store_material';
+import ReactMarkdown from 'react-markdown'; // 마크다운 렌더용 (설치 필요)
+
+interface LessonBodyProps {
+  lesson: LessonJsonV1;
+  fontSize: number;
+  onSentenceClick: (text: string) => void;
+}
+
+function LessonBody({ lesson, fontSize, onSentenceClick }: LessonBodyProps) {
+  return (
+    <div className="space-y-8">
+      {lesson.sections.map((section) => (
+        <div key={section.id} className="space-y-3">
+          <h3 className="text-sm font-semibold text-ink">
+            {section.label}
+          </h3>
+
+          {/* 섹션 타입별 렌더 */}
+          {section.type === 'vocabulary' && (
+            <div className="space-y-2">
+              {section.blocks
+                .filter((b): b is Extract<LessonBlock, { type: 'vocab_item' }> => b.type === 'vocab_item')
+                .map((vocab) => (
+                  <div
+                    key={vocab.word}
+                    className="flex flex-col rounded-md border border-lango bg-background px-3 py-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className="font-semibold text-ink"
+                        style={{ fontSize: fontSize }}
+                      >
+                        {vocab.word}
+                      </span>
+                      <span className="text-xs text-muted-ink">
+                        {vocab.translation}
+                      </span>
+                    </div>
+                    {vocab.note && (
+                      <p className="text-xs text-muted-ink mt-1">
+                        {vocab.note}
+                      </p>
+                    )}
+                    {vocab.example && (
+                      <button
+                        type="button"
+                        className="mt-1 text-xs text-primary text-left underline-offset-2 hover:underline"
+                        onClick={() => onSentenceClick(vocab.example!)}
+                      >
+                        예문: {vocab.example}
+                      </button>
+                    )}
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {(section.type === 'grammar' ||
+            section.type === 'conversation' ||
+            section.type === 'reading') && (
+            <div className="space-y-3">
+              {section.blocks
+                .filter((b): b is Extract<LessonBlock, { type: 'markdown' }> => b.type === 'markdown')
+                .map((block, idx) => (
+                  <div
+                    key={idx}
+                    className="prose prose-sm max-w-none"
+                    style={{ fontSize }}
+                  >
+                    <ReactMarkdown>{block.content}</ReactMarkdown>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {section.type === 'exercise' && (
+            <div className="space-y-4">
+              {section.blocks
+                .filter((b): b is Extract<LessonBlock, { type: 'question' }> => b.type === 'question')
+                .map((q) => (
+                  <QuestionBlock
+                    key={q.questionId}
+                    question={q}
+                    fontSize={fontSize}
+                    onSentenceClick={onSentenceClick}
+                  />
+                ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface QuestionBlockProps {
+  question: Extract<LessonBlock, { type: 'question' }>;
+  fontSize: number;
+  onSentenceClick: (text: string) => void;
+}
+
+function QuestionBlock({ question, fontSize, onSentenceClick }: QuestionBlockProps) {
+  const [answer, setAnswer] = useState('');
+  const [showModelAnswer, setShowModelAnswer] = useState(false);
+
+  return (
+    <div className="rounded-md border border-lango bg-background px-3 py-3 space-y-2">
+      <p className="text-xs text-ink whitespace-pre-line" style={{ fontSize }}>
+        {question.prompt}
+      </p>
+      <textarea
+        className="w-full mt-1 text-xs border border-lango rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+        rows={3}
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+      />
+      <div className="flex items-center justify-between gap-2 mt-1">
+        <div className="flex gap-2">
+          {question.modelAnswer && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-[11px]"
+              onClick={() => setShowModelAnswer((v) => !v)}
+            >
+              {showModelAnswer ? "정답 숨기기" : "정답 보기"}
+            </Button>
+          )}
+          <Button
+            size="sm"
+            className="h-7 px-2 text-[11px]"
+            onClick={() =>
+              onSentenceClick(
+                `[문제 풀이 피드백 요청]\n질문: ${question.prompt}\n내 답변: ${answer}`
+              )
+            }
+          >
+            빠른 피드백
+          </Button>
+        </div>
+      </div>
+      {showModelAnswer && question.modelAnswer && (
+        <div className="mt-2 rounded bg-surface-light px-2 py-1.5">
+          <p className="text-[11px] font-semibold text-primary mb-1">
+            모범 답안
+          </p>
+          <p className="text-xs text-ink whitespace-pre-line">
+            {question.modelAnswer}
+          </p>
+          {question.explanation && (
+            <p className="mt-1 text-[11px] text-muted-ink whitespace-pre-line">
+              {question.explanation}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface DocumentViewerProps {
+  mode: 'chunk' | 'lesson'; // 'chunk' 모드 또는 'lesson' 모드
   content: string;
   title: string;
   author?: string | null;
@@ -30,6 +191,8 @@ interface DocumentViewerProps {
   totalChunks: number;
   onPrevChunk: () => void;
   onNextChunk: () => void;
+
+  lesson?: LessonJsonV1 | null;
 }
 
 interface SelectionToolbarPosition {
@@ -39,6 +202,7 @@ interface SelectionToolbarPosition {
 }
 
 export default function DocumentViewer({
+  mode = 'chunk',
   content,
   title,
   author,
@@ -50,6 +214,7 @@ export default function DocumentViewer({
   totalChunks,
   onPrevChunk,
   onNextChunk,
+  lesson,
 }: DocumentViewerProps) {
   const [selectedSentence, setSelectedSentence] = useState<string | null>(null);
   const [hoveredSentence, setHoveredSentence] = useState<string | null>(null);
@@ -59,10 +224,13 @@ export default function DocumentViewer({
     useState<SelectionToolbarPosition | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // 텍스트를 문장 단위로 분할
-  const sentences = content
-    .split(/(?<=[.!?])\s+/)
-    .filter((s) => s.trim().length > 0);
+  // 텍스트를 문장 단위로 분할 (chunk 모드에서만 사용)
+  const sentences =
+    mode === 'chunk'
+      ? content
+          .split(/(?<=[.!?])\s+/)
+          .filter((s) => s.trim().length > 0)
+      : [];
 
   const handleSentenceClick = (sentence: string) => {
     setSelectedSentence(sentence);
@@ -164,7 +332,7 @@ const handleWordMeaning = () => {
           </div>
 
           {/* 오른쪽: 청크 네비 + 진행률 */}
-          {totalChunks > 0 && (
+          {mode === 'chunk' && totalChunks > 0 && (
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2">
                 <Button
@@ -271,48 +439,56 @@ const handleWordMeaning = () => {
               </Button>
             </div>
           )}
+          {mode === 'lesson' && lesson ? (
+            <LessonBody
+              lesson={lesson}
+              fontSize={fontSize}
+              onSentenceClick={handleSentenceClick}
+            />
+          ) : (
+            // 기존 chunk 모드 렌더
+            sentences.map((sentence, idx) => {
+              const isSelected = selectedSentence === sentence;
+              const isHovered = hoveredSentence === sentence;
 
-          {sentences.map((sentence, idx) => {
-            const isSelected = selectedSentence === sentence;
-            const isHovered = hoveredSentence === sentence;
-
-            return (
-              <div key={idx} className="relative group">
-                <span
-                  className={`
-                    inline cursor-pointer transition-all duration-150 px-1 py-0.5 -mx-1 rounded
-                    ${isSelected ? 'bg-primary/10 shadow-sm' : ''}
-                    ${
-                      isHovered && !isSelected
-                        ? 'bg-background border-b-2 border-dashed border-primary'
-                        : ''
-                    }
-                  `}
-                  style={{
-                    fontSize: `${fontSize}px`,
-                    lineHeight: '1.75',
-                    color: '#1A1A1A',
-                  }}
-                  onClick={() => handleSentenceClick(sentence)}
-                  onMouseEnter={() => setHoveredSentence(sentence)}
-                  onMouseLeave={() => setHoveredSentence(null)}
-                >
-                  {sentence}
-                </span>
-
-                {isHovered && !isSelected && (
-                  <Button
-                    size="sm"
-                    className="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity bg-primary hover:bg-primary/90 text-white h-7 text-xs"
+              return (
+                <div key={idx} className="relative group">
+                  <span
+                    className={`
+                      inline cursor-pointer transition-all duration-150 px-1 py-0.5 -mx-1 rounded
+                      ${isSelected ? 'bg-primary/10 shadow-sm' : ''}
+                      ${
+                        isHovered && !isSelected
+                          ? 'bg-background border-b-2 border-dashed border-primary'
+                          : ''
+                      }
+                    `}
+                    style={{
+                      fontSize: `${fontSize}px`,
+                      lineHeight: '1.75',
+                      color: '#1A1A1A',
+                    }}
                     onClick={() => handleSentenceClick(sentence)}
+                    onMouseEnter={() => setHoveredSentence(sentence)}
+                    onMouseLeave={() => setHoveredSentence(null)}
                   >
-                    <MessageSquare className="h-3 w-3 mr-1" />
-                    질문하기
-                  </Button>
-                )}
-              </div>
-            );
-          })}
+                    {sentence}
+                  </span>
+
+                  {isHovered && !isSelected && (
+                    <Button
+                      size="sm"
+                      className="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 transition-opacity bg-primary hover:bg-primary/90 text-white h-7 text-xs"
+                      onClick={() => handleSentenceClick(sentence)}
+                    >
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      질문하기
+                    </Button>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </Card>
