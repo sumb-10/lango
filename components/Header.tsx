@@ -14,8 +14,6 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { HelpCircle, User, LayoutDashboard, Settings } from 'lucide-react';
-// 필요하면 useAuth로 유저 정보 가져와서 이름/레벨/플랜 바꿀 수 있음
-// import { useAuth } from '@/lib/hooks/useAuth';
 
 interface HeaderProps {
   variant?: 'dashboard' | 'learning';
@@ -24,28 +22,39 @@ interface HeaderProps {
 export function Header({ variant = 'learning' }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const router = useRouter();
-  const { user, profile, login, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
+
+  const handleLogin = () => {
+    // Supabase OAuth 엔드포인트로 전체 페이지 리다이렉트
+    router.push('/api/auth/login');
+    // 또는 window.location.href = '/api/auth/login';
+  };
 
   const handleUserAreaClick = () => {
-    // 모바일에서는 Sheet 열기
+    // 로그인 안 된 상태에서는 바로 로그인으로
+    if (!user) {
+      handleLogin();
+      return;
+    }
+
+    // 로그인 되어 있으면: 모바일에서는 Sheet, 데스크탑에서는 mypage
     if (window.innerWidth < 768) {
       setIsMenuOpen(true);
     } else {
-      // 데스크탑에서는 내 페이지로 이동
       router.push('/mypage');
     }
   };
 
-  // TODO: 실제 유저 정보로 바꾸고 싶으면 useAuth 사용
   const displayName =
     profile?.name ||
-    profile?.email?.split("@")[0] ||
-    user?.email?.split("@")[0] ||
-    "Guest";
+    profile?.email?.split('@')[0] ||
+    user?.email?.split('@')[0] ||
+    'Guest';
+
   const displayInitial = displayName.charAt(0);
   const displayPlan = profile?.cefr_level
     ? `${profile.cefr_level} · ${profile.subscription_status} 플랜`
-    : "플랜 미설정";
+    : '플랜 미설정';
 
   return (
     <>
@@ -73,11 +82,14 @@ export function Header({ variant = 'learning' }: HeaderProps) {
 
               {variant === 'dashboard' ? (
                 <>
-                  <Link href="/mypage">
-                    <Button variant="ghost" size="sm">
-                      내 페이지
-                    </Button>
-                  </Link>
+                  {user && (
+                    <Link href="/mypage">
+                      <Button variant="ghost" size="sm">
+                        내 페이지
+                      </Button>
+                    </Link>
+                  )}
+                  {/* 설정 아이콘은 그대로 둘지, 로그인일 때만 보일지 선택 */}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -114,30 +126,43 @@ export function Header({ variant = 'learning' }: HeaderProps) {
             </div>
 
             {/* 우측 유저 영역 */}
-            <div
-              className="flex items-center gap-3 ml-4 pl-4 border-l border-[#E6E0D6] cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={handleUserAreaClick}
-            >
-              <div className="hidden sm:block text-right">
-                <div
-                  className="text-[#1A1A1A]"
-                  style={{ fontSize: '14px', fontWeight: 600 }}
-                >
-                  {displayName}
+            {user ? (
+              <div
+                className="flex items-center gap-3 ml-4 pl-4 border-l border-[#E6E0D6] cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={handleUserAreaClick}
+              >
+                <div className="hidden sm:block text-right">
+                  <div
+                    className="text-[#1A1A1A]"
+                    style={{ fontSize: '14px', fontWeight: 600 }}
+                  >
+                    {displayName}
+                  </div>
+                  <div
+                    className="text-[#5E5E5E]"
+                    style={{ fontSize: '12px' }}
+                  >
+                    {displayPlan}
+                  </div>
                 </div>
-                <div
-                  className="text-[#5E5E5E]"
-                  style={{ fontSize: '12px' }}
-                >
-                  {displayPlan}
-                </div>
+                <Avatar className="h-9 w-9 border-2 border-[#76B88A]">
+                  <AvatarFallback className="bg-[#76B88A] text-white">
+                    {displayInitial}
+                  </AvatarFallback>
+                </Avatar>
               </div>
-              <Avatar className="h-9 w-9 border-2 border-[#76B88A]">
-                <AvatarFallback className="bg-[#76B88A] text-white">
-                  {displayInitial}
-                </AvatarFallback>
-              </Avatar>
-            </div>
+            ) : (
+              // 로그인 안 된 상태: 아바타 대신 로그인 버튼
+              <Button
+                className="ml-4"
+                variant="outline"
+                size="sm"
+                onClick={handleLogin}
+              >
+                <User className="h-4 w-4 mr-2" />
+                Google로 로그인
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -158,19 +183,21 @@ export function Header({ variant = 'learning' }: HeaderProps) {
           </SheetHeader>
 
           <div className="mt-8 space-y-1">
-            <Link
-              href="/mypage"
-              onClick={() => setIsMenuOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#76B88A]/10 transition-colors"
-            >
-              <User className="h-5 w-5 text-[#76B88A]" />
-              <span
-                className="text-[#1A1A1A]"
-                style={{ fontSize: '15px', fontWeight: 500 }}
+            {user && (
+              <Link
+                href="/mypage"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#76B88A]/10 transition-colors"
               >
-                내 페이지
-              </span>
-            </Link>
+                <User className="h-5 w-5 text-[#76B88A]" />
+                <span
+                  className="text-[#1A1A1A]"
+                  style={{ fontSize: '15px', fontWeight: 500 }}
+                >
+                  내 페이지
+                </span>
+              </Link>
+            )}
 
             <Link
               href="/help"
@@ -219,59 +246,58 @@ export function Header({ variant = 'learning' }: HeaderProps) {
           </div>
 
           {/* User Info bottom card */}
-            <div className="absolute bottom-8 left-6 right-6">
-              <div className="p-4 bg-surface rounded-lg border border-[#E6E0D6]">
-                {user ? (
-                  // 🔹 로그인 된 경우: 기존 유저 정보 카드
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12 border-2 border-[#76B88A]">
-                      <AvatarFallback className="bg-[#76B88A] text-white">
-                        {displayInitial}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div
-                        className="text-[#1A1A1A]"
-                        style={{ fontSize: '14px', fontWeight: 600 }}
-                      >
-                        {displayName}
-                      </div>
-                      <div
-                        className="text-[#5E5E5E]"
-                        style={{ fontSize: '12px' }}
-                      >
-                        {displayPlan}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  // 🔹 로그인 안 된 경우: 로그인 CTA 카드
-                  <div className="space-y-3">
+          <div className="absolute bottom-8 left-6 right-6">
+            <div className="p-4 bg-surface rounded-lg border border-[#E6E0D6]">
+              {user ? (
+                // 로그인 된 경우: 기존 유저 정보 카드
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12 border-2 border-[#76B88A]">
+                    <AvatarFallback className="bg-[#76B88A] text-white">
+                      {displayInitial}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
                     <div
                       className="text-[#1A1A1A]"
                       style={{ fontSize: '14px', fontWeight: 600 }}
                     >
-                      로그인하고 나만의 학습 공간을 만들어 보세요
+                      {displayName}
                     </div>
                     <div
                       className="text-[#5E5E5E]"
                       style={{ fontSize: '12px' }}
                     >
-                      진행 상황을 저장하고, 나에게 맞는 단어장과 피드백을 받아볼 수 있어요.
+                      {displayPlan}
                     </div>
-                    <Button
-                      className="w-full mt-2"
-                      variant="outline"
-                      onClick={login}
-                    >
-                      <User className="h-4 w-4 mr-2" />
-                      Google로 로그인
-                    </Button>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                // 로그인 안 된 경우: 로그인 CTA 카드
+                <div className="space-y-3">
+                  <div
+                    className="text-[#1A1A1A]"
+                    style={{ fontSize: '14px', fontWeight: 600 }}
+                  >
+                    로그인하고 나만의 학습 공간을 만들어 보세요
+                  </div>
+                  <div
+                    className="text-[#5E5E5E]"
+                    style={{ fontSize: '12px' }}
+                  >
+                    진행 상황을 저장하고, 나에게 맞는 단어장과 피드백을 받아볼 수 있어요.
+                  </div>
+                  <Button
+                    className="w-full mt-2"
+                    variant="outline"
+                    onClick={handleLogin}
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    Google로 로그인
+                  </Button>
+                </div>
+              )}
             </div>
-
+          </div>
         </SheetContent>
       </Sheet>
     </>
