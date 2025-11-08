@@ -62,31 +62,6 @@ export default function DashboardPageClient() {
         file: null as File | null,
     });
 
-    // 🔹 1) 아직 세션 확인 중일 때
-    if (loading) {
-        return (
-        <div className="min-h-screen flex items-center justify-center bg-bg">
-            <div className="text-muted-ink">로그인 상태를 확인하는 중입니다...</div>
-        </div>
-        );
-    }
-
-    // 🔹 2) 세션 확인이 끝났는데도 user가 없을 때 → 진짜 로그아웃 상태
-    if (!user) {
-        return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-bg gap-4">
-            <div className="text-muted-ink">로그인이 필요합니다</div>
-            <Button
-            variant="outline"
-            onClick={() => router.push('/api/auth/login')}
-            >
-            Google로 로그인하기
-            </Button>
-        </div>
-        );
-    }
-
-
     // track processing state per material id
     const [processingIds, setProcessingIds] = useState<number[]>([]);
 
@@ -143,6 +118,32 @@ export default function DashboardPageClient() {
         //fetchStats();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // 🔹 여기서부터 조건부 return
+
+    // 1) 세션 로딩 중
+    if (loading) {
+        return (
+        <div className="min-h-screen flex items-center justify-center bg-bg">
+            <div className="text-muted-ink">로그인 상태를 확인하는 중입니다...</div>
+        </div>
+        );
+    }
+
+    // 2) 세션 확인 끝났는데 user 없음
+    if (!user) {
+        return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-bg gap-4">
+            <div className="text-muted-ink">로그인이 필요합니다</div>
+            <Button
+            variant="outline"
+            onClick={() => router.push("/api/auth/login")}
+            >
+            Google로 로그인하기
+            </Button>
+        </div>
+        );
+    }
 
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
