@@ -84,7 +84,7 @@ export default function VocabularyPage() {
                     <p className="text-sm mb-2">{item.definition}</p>
                     {item.example_sentence && (
                       <p className="text-sm text-muted-foreground italic">
-                        "{item.example_sentence}"
+                        &quot;{item.example_sentence}&quot;
                       </p>
                     )}
                   </CardContent>
