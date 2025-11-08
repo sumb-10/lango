@@ -15,7 +15,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import type { LessonJsonV1 } from '@/types/store_material';
+import type { LessonJsonV1 } from '@/.types/store_material';
 
 
 interface Props {

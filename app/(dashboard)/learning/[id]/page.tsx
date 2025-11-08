@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 import LearningView from "@/components/LearningView";
 import { Header } from "@/components/Header";
-import type { LessonJsonV1 } from "@/types/store_material";
+import type { LessonJsonV1 } from "@/.types/store_material";
 
 interface PageParams {
   id: string;

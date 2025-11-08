@@ -50,3 +50,9 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+#others
+.types
+.lesson_samples
+.supabase
+
