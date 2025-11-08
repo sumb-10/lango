@@ -1,3 +1,5 @@
+// lib/openai.ts
+
 import OpenAI from 'openai';
 
 export const openai = new OpenAI({
@@ -74,4 +76,24 @@ export async function invokeLLMStreaming(params: {
     console.error('OpenAI Streaming API Error:', error);
     throw new Error('LLM 스트리밍 호출 중 오류가 발생했습니다.');
   }
+}
+
+/**
+ * ✅ 옛날 코드 호환용 래퍼
+ * app/api/chat/route.ts 등에서 쓰는 형태와 맞춰줌
+ */
+export async function createChatCompletion(
+  messages: LLMMessage[],
+  options?: {
+    temperature?: number;
+    maxTokens?: number;
+    model?: string;
+  }
+): Promise<string> {
+  return invokeLLM({
+    messages,
+    temperature: options?.temperature,
+    maxTokens: options?.maxTokens,
+    model: options?.model,
+  });
 }

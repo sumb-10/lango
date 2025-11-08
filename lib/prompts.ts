@@ -358,3 +358,19 @@ export function createEssayTopicGenerationPrompt(userInput?: string): string {
 export function createEssayEvaluationPrompt(topic: string, essay: string): string {
   return `주제: "${topic}"\n\n학습자의 작문:\n"${essay}"\n\n위 작문을 4가지 기준(문법, 어휘, 일관성, 과제 달성)으로 평가해주세요.`;
 }
+
+export function createExplanationPrompt(
+  selectedText: string,
+  question: string,
+  context?: string
+): string {
+  const selected = selectedText
+    ? `※ 참고 문장:\n"${selectedText}"\n\n`
+    : '';
+
+  const extra = context
+    ? `※ 추가 문맥:\n${context}\n\n`
+    : '';
+
+  return `${selected}${extra}질문: "${question}"\n\n위 질문에 대해, 학습자가 이해하기 쉽게 단계별로 설명해주세요.`;
+}

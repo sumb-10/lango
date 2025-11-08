@@ -1,3 +1,5 @@
+// app/api/chat/route.ts
+
 import { createClient } from '@/lib/supabase/server'
 import { createChatCompletion } from '@/lib/openai'
 import { SYSTEM_PROMPTS, createExplanationPrompt } from '@/lib/prompts'
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
     // Generate response using LLM
     const response = await createChatCompletion(
       [
-        { role: 'system', content: SYSTEM_PROMPTS.tutor },
+        { role: 'system', content: SYSTEM_PROMPTS.QUESTION },
         { role: 'user', content: createExplanationPrompt(selectedText || '', question, context) },
       ],
       { temperature: 0.7 }
