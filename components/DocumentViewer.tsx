@@ -16,7 +16,7 @@ import {
   MessageSquare,
   BookOpen,
 } from 'lucide-react';
-import type { LessonJsonV1, LessonSection, LessonBlock } from '@/.types/store_material';
+import type { LessonJsonV1, LessonSection, LessonBlock } from '@/types/store_material';
 import ReactMarkdown from 'react-markdown'; // 마크다운 렌더용 (설치 필요)
 import remarkGfm from 'remark-gfm';
 
