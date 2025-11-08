@@ -1,0 +1,407 @@
+// app/(dashboard)/dashboard/page.tsx
+"use client";
+
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import {
+    Upload,
+    FileText,
+    Settings,
+    Plus,
+    PenTool,
+    BookOpen,
+    CreditCard,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Header } from "@/components/Header";
+
+type MaterialStatus = "uploaded" | "processing" | "ready";
+
+interface Material {
+    id: number;
+    title: string;
+    author?: string | null;
+    fileType: string;
+    cefrLevel?: string | null;
+    status: MaterialStatus;
+}
+
+interface Stats {
+    user: { creditBalance: number };
+    materials: { total: number };
+    learning: { completedSessions: number };
+    vocabulary: { dueForReview: number };
+}
+
+export default function DashboardPageClient() {
+    const { user, logout } = useAuth();
+    const router = useRouter();
+
+    const [materials, setMaterials] = useState<Material[]>([]);
+    const [stats, setStats] = useState<Stats | null>(null);
+    const [loadingMaterials, setLoadingMaterials] = useState(false);
+    const [loadingStats, setLoadingStats] = useState(false);
+
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [uploadForm, setUploadForm] = useState({
+        title: "",
+        author: "",
+        file: null as File | null,
+    });
+
+    // track processing state per material id
+    const [processingIds, setProcessingIds] = useState<number[]>([]);
+
+    const fetchMaterials = async () => {
+        try {
+            setLoadingMaterials(true);
+            const res = await fetch("/api/materials", { credentials: "include" });
+            if (!res.ok) throw new Error("Failed to load materials");
+
+            const data = await res.json();
+
+            // 서버 응답이 { materials: [...] } 라고 가정
+            const raw = data?.materials ?? [];
+
+            // 타입 맞게 normalize
+            const normalized: Material[] = Array.isArray(raw)
+            ? raw.map((m: any) => ({
+                id: m.id,
+                title: m.title,
+                author: m.author ?? null,
+                fileType: m.file_type ?? m.fileType ?? "txt",
+                cefrLevel: m.cefr_level ?? m.cefrLevel ?? null,
+                status: (m.status as MaterialStatus) ?? "uploaded",
+                }))
+            : [];
+
+            setMaterials(normalized);
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err?.message || "교재 로드에 실패했습니다");
+        } finally {
+            setLoadingMaterials(false);
+        }
+    };
+
+
+    const fetchStats = async () => {
+        try {
+            setLoadingStats(true);
+            const res = await fetch("/api/dashboard/stats", { credentials: "include" });
+            if (!res.ok) throw new Error("Failed to load stats");
+            const data = await res.json();
+            setStats(data || null);
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err?.message || "통계 로드에 실패했습니다");
+        } finally {
+            setLoadingStats(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchMaterials();
+        //fetchStats();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleUpload = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!uploadForm.file) {
+            toast.error("파일을 선택하세요");
+            return;
+        }
+
+        setUploading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append("title", uploadForm.title);
+            if (uploadForm.author) {
+            formData.append("author", uploadForm.author);
+            }
+            // 폴더 기능 쓰고 있으면 여기서 같이 추가
+            // formData.append("folderId", String(folderId));
+            formData.append("file", uploadForm.file); // ✅ 실제 File 객체
+
+            const res = await fetch("/api/materials/upload", {
+            method: "POST",
+            credentials: "include",
+            body: formData, // ✅ Content-Type 직접 설정하지 말 것!
+            });
+
+            if (!res.ok) {
+            const errBody = await res.json().catch(() => null);
+            throw new Error(errBody?.error || "Upload failed");
+            }
+
+            // 🔹 업로드된 material 정보 받기
+            const data = await res.json();
+            const material = data.material;
+
+            if (!material?.id) {
+            throw new Error("업로드 응답에 material id가 없습니다");
+            }
+            
+            toast.success("교재가 업로드되고 처리가 시작되었습니다");
+            setShowUploadModal(false);
+            setUploadForm({ title: "", author: "", file: null });
+
+            // refresh list & stats
+            await fetchMaterials();
+            // await fetchStats(); // 필요하면 다시 살리기
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err?.message || "업로드 실패");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+
+    const handleProcess = async (materialId: number) => {
+        try {
+            setProcessingIds((ids) => [...ids, materialId]);
+            const res = await fetch("/api/materials/process", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ materialId }),
+            });
+            if (!res.ok) {
+                const errBody = await res.json().catch(() => null);
+                throw new Error(errBody?.message || "Processing failed");
+            }
+            toast.success("교재 처리가 시작되었습니다");
+            // refresh list & stats
+            await fetchMaterials();
+            //await fetchStats();
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err?.message || "처리 실패");
+        } finally {
+            setProcessingIds((ids) => ids.filter((id) => id !== materialId));
+        }
+    };
+
+    if (!user) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-bg">
+                <div className="text-muted-ink">로그인이 필요합니다</div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen flex bg-bg">
+            <div className="flex-1 flex flex-col">
+                <Header variant="dashboard" />
+
+                {/* Stats Bar */}
+                <div className="border-b border-lango bg-surface px-4 md:px-8 py-4">
+                    <div className="container flex items-center justify-between">
+                        <div className="flex items-center gap-8">
+                            <div>
+                                <div className="text-sm text-muted-ink">크레딧 잔액</div>
+                                <div className="text-xl font-bold text-primary">{stats?.user.creditBalance ?? 0}</div>
+                            </div>
+                            <div>
+                                <div className="text-sm text-muted-ink">교재</div>
+                                <div className="text-xl font-bold text-ink">{stats?.materials.total ?? 0}</div>
+                            </div>
+                            <div>
+                                <div className="text-sm text-muted-ink">완료한 학습</div>
+                                <div className="text-xl font-bold text-ink">{stats?.learning.completedSessions ?? 0}</div>
+                            </div>
+                        </div>
+                        <Link href="/credit">
+                            <Button variant="outline" className="gap-2">
+                                <CreditCard className="h-4 w-4" />
+                                크레딧 충전
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+
+                {/* Main Content */}
+                <main className="flex-1 px-4 md:px-8 py-6 overflow-auto">
+                    <div className="container">
+                        {/* Quick Actions */}
+                        <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <button
+                                onClick={() => setShowUploadModal(true)}
+                                className="p-6 bg-surface border-2 border-dashed border-primary/40 hover:border-primary/60 rounded-lg transition-all text-left group"
+                            >
+                                <Upload className="h-8 w-8 text-primary mb-3" />
+                                <h3 className="font-semibold text-ink mb-1">새 교재 업로드</h3>
+                                <p className="text-sm text-muted-ink">TXT 파일을 업로드하여 학습을 시작하세요</p>
+                            </button>
+
+                            <Link href="/essay" className="block p-6 bg-surface border border-lango hover:border-primary/60 rounded-lg transition-all group">
+                                <PenTool className="h-8 w-8 text-primary mb-3" />
+                                <h3 className="font-semibold text-ink mb-1">긴글 작문 평가</h3>
+                                <p className="text-sm text-muted-ink">작문을 제출하고 AI 평가를 받으세요</p>
+                            </Link>
+
+                            <Link href="/vocabulary" className="block p-6 bg-surface border border-lango hover:border-primary/60 rounded-lg transition-all group">
+                                <BookOpen className="h-8 w-8 text-primary mb-3" />
+                                <h3 className="font-semibold text-ink mb-1">단어장 복습</h3>
+                                <p className="text-sm text-muted-ink">{stats?.vocabulary.dueForReview ?? 0}개의 단어가 복습 대기 중</p>
+                            </Link>
+                        </div>
+
+                        {/* Materials Grid */}
+                        <div>
+                            <h2 className="text-xl font-semibold text-ink mb-4">내 교재</h2>
+
+                            {materials && materials.length === 0 && (
+                                <div className="text-center py-12 bg-surface rounded-lg border border-lango">
+                                    <p className="text-muted-ink">아직 업로드된 교재가 없습니다.</p>
+                                    <Button onClick={() => setShowUploadModal(true)} className="mt-4 bg-primary hover:bg-primary/90">
+                                        첫 교재 업로드하기
+                                    </Button>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {materials?.map((material) => (
+                                    <div
+                                        key={material.id}
+                                        className="group relative overflow-hidden bg-surface border border-lango hover:border-primary/60 hover:shadow-md transition-all cursor-pointer aspect-square rounded-lg"
+                                    >
+                                        {/* Content */}
+                                        <div className="absolute inset-0 p-4 flex flex-col items-center justify-center">
+                                            <div className="w-16 h-16 rounded-lg bg-highlight flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
+                                                <FileText className="h-8 w-8 text-primary" />
+                                            </div>
+                                            <p className="text-ink text-center mb-1 px-2 line-clamp-2 text-sm font-semibold">
+                                                {material.title}
+                                            </p>
+                                            {material.author && (
+                                                <p className="text-muted-ink text-center mb-2 text-xs">
+                                                    {material.author}
+                                                </p>
+                                            )}
+                                            <div className="flex flex-wrap gap-1 justify-center">
+                                                <span className="px-2 py-0.5 text-xs bg-lango/50 text-muted-ink rounded border border-lango">
+                                                    {material.fileType.toUpperCase()}
+                                                </span>
+                                                {material.cefrLevel && (
+                                                    <span className="px-2 py-0.5 text-xs bg-highlight text-primary rounded border border-primary/20">
+                                                        {material.cefrLevel}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Status Badge */}
+                                        <div className="absolute top-2 right-2">
+                                            <span className="px-2 py-0.5 text-xs bg-white/80 text-muted-ink border border-lango rounded">
+                                                {material.status === "uploaded" && "대기중"}
+                                                {material.status === "processing" && "처리중"}
+                                                {material.status === "ready" && "완료"}
+                                            </span>
+                                        </div>
+
+                                        {/* Action Buttons Overlay */}
+                                        <div className="absolute inset-0 bg-ink/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-4">
+                                            {material.status === "uploaded" && (
+                                                <Button
+                                                    onClick={() => handleProcess(material.id)}
+                                                    className="bg-primary text-white hover:bg-primary/90"
+                                                    disabled={processingIds.includes(material.id)}
+                                                >
+                                                    {processingIds.includes(material.id) ? "처리중..." : "처리 시작"}
+                                                </Button>
+                                            )}
+                                            {material.status === "ready" && (
+                                                <Link href={`/learning/${material.id}`}>
+                                                    <Button className="bg-primary text-white hover:bg-primary/90">
+                                                        학습하기
+                                                    </Button>
+                                                </Link>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+
+            {/* Upload Modal */}
+            {showUploadModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-surface rounded-lg border border-lango p-6 max-w-md w-full">
+                        <h2 className="text-2xl font-bold text-ink mb-4">교재 업로드</h2>
+                        <form onSubmit={handleUpload} className="space-y-4">
+                            <div>
+                                <label htmlFor="title" className="block text-sm font-medium text-ink mb-2">
+                                    제목 *
+                                </label>
+                                <input
+                                    type="text"
+                                    id="title"
+                                    required
+                                    value={uploadForm.title}
+                                    onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
+                                    className="w-full px-4 py-2 border border-lango rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="author" className="block text-sm font-medium text-ink mb-2">
+                                    저자 (선택)
+                                </label>
+                                <input
+                                    type="text"
+                                    id="author"
+                                    value={uploadForm.author}
+                                    onChange={(e) => setUploadForm({ ...uploadForm, author: e.target.value })}
+                                    className="w-full px-4 py-2 border border-lango rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="file" className="block text-sm font-medium text-ink mb-2">
+                                    파일 (TXT만 지원) *
+                                </label>
+                                <input
+                                    type="file"
+                                    id="file"
+                                    accept=".txt"
+                                    required
+                                    onChange={(e) => setUploadForm({ ...uploadForm, file: e.target.files?.[0] || null })}
+                                    className="w-full px-4 py-2 border border-lango rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                                />
+                                <p className="text-xs text-muted-ink mt-1">최대 10MB, TXT 파일만 업로드 가능합니다</p>
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                                <Button
+                                    type="button"
+                                    onClick={() => setShowUploadModal(false)}
+                                    variant="outline"
+                                    className="flex-1"
+                                >
+                                    취소
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={uploading || !uploadForm.file}
+                                    className="flex-1 bg-primary hover:bg-primary/90 text-white"
+                                >
+                                    {uploading ? "업로드 중..." : "업로드"}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

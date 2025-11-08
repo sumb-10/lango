@@ -1,0 +1,77 @@
+import OpenAI from 'openai';
+
+export const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
+});
+
+export interface LLMMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export async function invokeLLM(params: {
+  messages: LLMMessage[];
+  temperature?: number;
+  maxTokens?: number;
+  model?: string;
+}): Promise<string> {
+  const {
+    messages,
+    temperature = 0.7,
+    maxTokens = 2000,
+    model = 'gpt-4o-mini',
+  } = params;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+    });
+
+    return response.choices[0]?.message?.content || '';
+  } catch (error) {
+    console.error('OpenAI API Error:', error);
+    throw new Error('LLM 호출 중 오류가 발생했습니다.');
+  }
+}
+
+export async function invokeLLMStreaming(params: {
+  messages: LLMMessage[];
+  temperature?: number;
+  maxTokens?: number;
+  model?: string;
+}): Promise<ReadableStream> {
+  const {
+    messages,
+    temperature = 0.7,
+    maxTokens = 2000,
+    model = 'gpt-4o-mini',
+  } = params;
+
+  try {
+    const stream = await openai.chat.completions.create({
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      stream: true,
+    });
+
+    return new ReadableStream({
+      async start(controller) {
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || '';
+          if (content) {
+            controller.enqueue(new TextEncoder().encode(content));
+          }
+        }
+        controller.close();
+      },
+    });
+  } catch (error) {
+    console.error('OpenAI Streaming API Error:', error);
+    throw new Error('LLM 스트리밍 호출 중 오류가 발생했습니다.');
+  }
+}
