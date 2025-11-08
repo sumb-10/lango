@@ -97,3 +97,31 @@ export async function createChatCompletion(
     model: options?.model,
   });
 }
+
+// 단일 텍스트 입력을 임베딩 벡터로 바꾸는 헬퍼
+export async function createEmbedding(
+  input: string,
+  options?: {
+    model?: string;
+  }
+): Promise<number[]> {
+  const model = options?.model ?? 'text-embedding-3-small';
+
+  try {
+    const response = await openai.embeddings.create({
+      model,
+      input,
+    });
+
+    // 첫 번째 결과의 embedding 벡터만 사용
+    const embedding = response.data[0]?.embedding;
+    if (!embedding) {
+      throw new Error('Empty embedding from OpenAI');
+    }
+
+    return embedding;
+  } catch (error) {
+    console.error('OpenAI Embedding API Error:', error);
+    throw new Error('임베딩 생성 중 오류가 발생했습니다.');
+  }
+}

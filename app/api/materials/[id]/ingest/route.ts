@@ -1,3 +1,5 @@
+// app/api/materials/[id]/ingest/route.ts
+
 export const runtime = 'nodejs';
 
 import { createClient } from '@/lib/supabase/server'
