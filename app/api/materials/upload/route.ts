@@ -109,7 +109,7 @@ async function processMaterialInBackground(
     const supabase = await createClient();
 
     // 1. 텍스트를 청크로 분할 (약 500자씩)
-    const chunkSize = 2000;
+    const chunkSize = 5000;
     const chunks: any[] = [];
     let startPosition = 0;
 
@@ -138,7 +138,7 @@ async function processMaterialInBackground(
     }
 
     // 2. LLM으로 학습지 생성
-    const worksheetPrompt = `다음 텍스트를 분석하여 학습지를 생성하세요:\n\n${textContent.substring(0, 2000)}...`;
+    const worksheetPrompt = `다음 텍스트를 분석하여 학습지를 생성하세요:\n\n${textContent.substring(0, 5000)}...`;
 
     console.log('[material] calling LLM for worksheet', { materialId });
 

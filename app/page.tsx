@@ -17,7 +17,7 @@ export default function HomePage() {
           </p>
           <Link href="/dashboard">
             <Button size="lg" className="text-lg px-8 py-6">
-              학습 시작하기
+              학습 시작하기(login 안된채로 누르지 마세요! 로그인 안한 상태면 404뜹니다)
             </Button>
           </Link>
         </section>
