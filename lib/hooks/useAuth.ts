@@ -1,13 +1,11 @@
 // lib/hooks/useAuth.ts
-
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
-// ✅ public.users 테이블과 맞는 타입
 export interface UserProfile {
   id: string;
   email: string | null;
@@ -18,52 +16,28 @@ export interface UserProfile {
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<User | null>(null);            // auth.users
-  const [profile, setProfile] = useState<UserProfile | null>(null); // public.users
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
 
-
-    const loadProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("users")
-        .select("id, email, name, cefr_level, credit_balance, subscription_status")
-        .eq("id", userId)
-        .single();
-
-      if (error) {
-        console.error("Error loading user profile:", error);
-        setProfile(null);
-        return;
-      }
-
-      setProfile(data as UserProfile);
-    } catch (err) {
-      console.error("Unexpected error loading profile:", err);
-      setProfile(null);
-    }
-  };
-
+  // ✅ 세션은 서버 API에서만 읽어온다
   useEffect(() => {
-    // 초기 세션 확인
-    const getSession = async () => {
+    const load = async () => {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+        const res = await fetch("/api/auth/session", {
+          credentials: "include",
+        });
 
-        const authUser = session?.user ?? null;
-        setUser(authUser);
-
-        if (authUser) {
-          await loadProfile(authUser.id);
-        } else {
-          setProfile(null);
+        if (!res.ok) {
+          throw new Error("세션 조회 실패");
         }
-      } catch (error) {
-        console.error("Error getting session:", error);
+
+        const data = await res.json();
+        setUser(data.user);
+        setProfile(data.profile);
+      } catch (err) {
+        console.error("Error loading session:", err);
         setUser(null);
         setProfile(null);
       } finally {
@@ -71,38 +45,27 @@ export function useAuth() {
       }
     };
 
-    getSession();
+    load();
+  }, []);
 
-    // 인증 상태 변경 감지
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const authUser = session?.user ?? null;
-      setUser(authUser);
-
-      if (authUser) {
-        await loadProfile(authUser.id);
-      } else {
-        setProfile(null);
-      }
-
-      setLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase.auth]);
-
+  const supabase = createClient();
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      // 1) 서버 쿠키 세션 정리
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      // 2) 클라이언트 상태 정리
       setUser(null);
       setProfile(null);
-      router.push("/");
+
+      // 3) 홈으로 보내기 (원하면 /auth/login 같은 곳으로 변경 가능)
+      router.push('/');
     } catch (error) {
-      console.error("Error logging out:", error);
+      console.error('Error logging out:', error);
     }
   };
 
@@ -111,12 +74,11 @@ export function useAuth() {
   };
 
   return {
-    user,              // auth.users
-    profile,           // ✅ public.users
+    user,
+    profile,
     loading,
     logout,
     login,
     isAuthenticated: !!user,
   };
 }
-

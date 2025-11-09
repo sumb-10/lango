@@ -30,6 +30,15 @@ export function Header({ variant = 'learning' }: HeaderProps) {
     // 또는 window.location.href = '/api/auth/login';
   };
 
+  const handleLogout = async () => {
+    try {
+      await logout();          // useAuth 안에서 세션/상태/라우팅 처리
+      setIsMenuOpen(false);    // 모바일 시트 열려 있으면 닫기
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleUserAreaClick = () => {
     // 로그인 안 된 상태에서는 바로 로그인으로
     if (!user) {
@@ -97,12 +106,25 @@ export function Header({ variant = 'learning' }: HeaderProps) {
               {variant === 'dashboard' ? (
                 <>
                   {user && (
-                    <Link href="/mypage">
-                      <Button variant="ghost" size="sm">
-                        내 페이지
+                    <>
+                      <Link href="/mypage">
+                        <Button variant="ghost" size="sm">
+                          내 페이지
+                        </Button>
+                      </Link>
+
+                      {/* 🔹 로그아웃 버튼 */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleLogout}
+                      >
+                        로그아웃
                       </Button>
-                    </Link>
+                    </>
                   )}
+
+
                   {/* 설정 아이콘은 그대로 둘지, 로그인일 때만 보일지 선택 */}
                   <Button
                     variant="ghost"
