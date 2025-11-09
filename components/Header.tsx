@@ -56,6 +56,13 @@ export function Header({ variant = 'learning' }: HeaderProps) {
     ? `${profile.cefr_level} · ${profile.subscription_status} 플랜`
     : '플랜 미설정';
 
+  const handleNotImplementedClick = () => {
+    // 나중에 여기서 폴더 생성 다이얼로그 or API 연결
+    alert("아직 준비 중입니다.");
+    // 우선은 폴더 관리 페이지로 보내버리는 것도 UX상 괜찮음
+    // router.push("/materials");
+    };
+
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-surface px-4 md:px-8 py-3 md:py-4">
@@ -74,11 +81,18 @@ export function Header({ variant = 'learning' }: HeaderProps) {
           <div className="flex items-center gap-4">
             {/* 데스크탑 네비게이션 */}
             <div className="hidden md:flex items-center gap-3">
-              <Link href="/help">
-                <Button variant="ghost" size="sm">
+              
+                <Button variant="ghost" size="sm" onClick={handleNotImplementedClick}>
                   도움말
                 </Button>
-              </Link>
+              
+
+              {/* 🔹 스토어 메뉴 추가 */}
+                <Link href="/store">
+                  <Button variant="ghost" size="sm">
+                    스토어
+                  </Button>
+                </Link>
 
               {variant === 'dashboard' ? (
                 <>
@@ -94,6 +108,7 @@ export function Header({ variant = 'learning' }: HeaderProps) {
                     variant="ghost"
                     size="icon"
                     className="text-[#5E5E5E]"
+                    onClick={handleNotImplementedClick}
                   >
                     <svg
                       className="h-5 w-5"
