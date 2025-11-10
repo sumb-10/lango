@@ -15,9 +15,9 @@ export default function HomePage() {
           <p className="text-xl text-muted-ink mb-8">
             당신의 교재를 업로드하고, AI 튜터와 함께 읽기와 쓰기를 학습하세요. 실시간 피드백으로 빠르게 실력을 향상시킬 수 있습니다.
           </p>
-          <Link href="/dashboard">
+          <Link href="/api/auth/login">
             <Button size="lg" className="text-lg px-8 py-6">
-              학습 시작하기(login 안된채로 누르지 마세요! 로그인 안한 상태면 404뜹니다)
+              학습 시작하기
             </Button>
           </Link>
         </section>
