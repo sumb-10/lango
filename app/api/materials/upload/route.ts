@@ -29,6 +29,7 @@ function validateFileOrThrow(file: File | null) {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('=== [UPLOAD ROUTE] USING SIGNED URL VERSION ===');
   try {
     const supabase = await createClient();
 

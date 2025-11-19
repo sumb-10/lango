@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import {
   Tabs,
@@ -66,41 +66,44 @@ const [normalizedSelectedText, setNormalizedSelectedText] = useState<string>('')
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 공통: 마이크로 피드백 API 호출 함수
-  const callMicroFeedback = async (
-    type: MicroFeedbackType,
-    input: string,
-    context?: string,
-  ): Promise<string> => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/feedback/micro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          feedbackType: type,
-          inputText: input,
-          context: context ?? normalizedSelectedText ?? '',
-          worksheetId: worksheetId ?? null,
-        }),
-      });
+  const callMicroFeedback = useCallback(
+    async (
+      type: MicroFeedbackType,
+      input: string,
+      context?: string,
+    ): Promise<string> => {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/feedback/micro', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            feedbackType: type,
+            inputText: input,
+            context: context ?? normalizedSelectedText ?? '',
+            worksheetId: worksheetId ?? null,
+          }),
+        });
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        console.error('Micro feedback API error:', err);
-        throw new Error('Failed to get feedback');
+        if (!res.ok) {
+          const err = await res.json().catch(() => null);
+          console.error('Micro feedback API error:', err);
+          throw new Error('Failed to get feedback');
+        }
+
+        const data = await res.json();
+        return data.feedback?.output_text ?? '피드백 내용을 불러올 수 없습니다.';
+      } catch (error) {
+        console.error(error);
+        toast.error('피드백을 가져오는 중 오류가 발생했습니다');
+        throw error;
+      } finally {
+        setLoading(false);
       }
-
-      const data = await res.json();
-      // 백엔드에서 { feedback } 반환, 그 안의 output_text 사용
-      return data.feedback?.output_text ?? '피드백 내용을 불러올 수 없습니다.';
-    } catch (error) {
-      console.error(error);
-      toast.error('피드백을 가져오는 중 오류가 발생했습니다');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    // 🔹 이 훅이 의존하는 값들
+    [worksheetId, normalizedSelectedText],
+  );
 
   // ✅ 프리셋 버튼 클릭 핸들러 (빠른 설명 탭 전용)
   const handlePresetClick = async (preset: (typeof presetQuestions)[number]) => {
@@ -269,7 +272,7 @@ const [normalizedSelectedText, setNormalizedSelectedText] = useState<string>('')
       setQuickLabel(null);
       setQuickAnswer(null);
     }
-  }, [selectedText]);
+  }, [selectedText, callMicroFeedback]);
 
   return (
     <Card
