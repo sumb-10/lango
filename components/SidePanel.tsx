@@ -15,12 +15,14 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HelpCircle, MessageCircle, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import type { SentenceRecord } from '@/lib/processUserMaterial';
 
 interface Props {
   materialId: number;
   worksheetId?: number;
   chunkId?: number;
   selectedText: string;
+  selectedSentenceMeta?: SentenceRecord | null; // 🔹 새로 추가
   isMobile?: boolean;
 }
 
@@ -46,6 +48,7 @@ export default function SidePanel({
   worksheetId,
   chunkId,
   selectedText,
+  selectedSentenceMeta,
   isMobile,
 }: Props) {
   const [activeTab, setActiveTab] = useState<'question' | 'chat'>('question');
@@ -168,6 +171,9 @@ const [normalizedSelectedText, setNormalizedSelectedText] = useState<string>('')
 
   const isSentenceSelected = !!normalizedSelectedText;
 
+  useEffect(() => {
+  console.log('[SidePanel] selectedSentenceMeta', selectedSentenceMeta);
+}, [selectedSentenceMeta]);
 
   //selectedText가 바뀔 때 태그 파싱 + 자동 호출
   useEffect(() => {
@@ -334,6 +340,62 @@ const [normalizedSelectedText, setNormalizedSelectedText] = useState<string>('')
                     </p>
                   </div>
                 </div>
+
+                {/* 🔹 문장 메타 정보(해석 / 구조 / key point) */}
+                {selectedSentenceMeta && (
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <p
+                        className="text-muted-ink mb-1"
+                        style={{ fontSize: '12px', fontWeight: 600 }}
+                      >
+                        해석
+                      </p>
+                      <div className="bg-background border border-lango rounded-lg p-3">
+                        <p
+                          className="whitespace-pre-wrap text-ink"
+                          style={{ fontSize: '14px', lineHeight: '1.6' }}
+                        >
+                          {selectedSentenceMeta.translate}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p
+                        className="text-muted-ink mb-1"
+                        style={{ fontSize: '12px', fontWeight: 600 }}
+                      >
+                        문장 구조
+                      </p>
+                      <div className="bg-background border border-lango rounded-lg p-3">
+                        <p
+                          className="whitespace-pre-wrap text-ink"
+                          style={{ fontSize: '14px', lineHeight: '1.6' }}
+                        >
+                          {selectedSentenceMeta.structure}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p
+                        className="text-muted-ink mb-1"
+                        style={{ fontSize: '12px', fontWeight: 600 }}
+                      >
+                        핵심 포인트
+                      </p>
+                      <div className="bg-background border border-lango rounded-lg p-3">
+                        <p
+                          className="whitespace-pre-wrap text-ink"
+                          style={{ fontSize: '14px', lineHeight: '1.6' }}
+                        >
+                          {selectedSentenceMeta.key_point}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 빠른 질문 프리셋 */}
                 <div>

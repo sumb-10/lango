@@ -103,9 +103,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const {
-      data: { publicUrl: jsonUrl },
-    } = supabase.storage.from(bucket).getPublicUrl(jsonPath);
+    // 🔹 여기부터 getPublicUrl → createSignedUrl 로 변경
+    const { data: signedData, error: signedError } = await supabase
+      .storage
+      .from(bucket)
+      .createSignedUrl(jsonPath, 60 * 60 * 24 * 3650); // 1년(365일) 유효
+
+    if (signedError || !signedData?.signedUrl) {
+      console.error('[material] createSignedUrl error:', signedError);
+      return NextResponse.json(
+        { error: 'JSON 파일 접근 URL 생성 중 오류가 발생했습니다' },
+        { status: 500 },
+      );
+    }
+
+    const jsonUrl = signedData.signedUrl;
+
 
     // 7) 메타데이터 계산
     const wordCount = textContent

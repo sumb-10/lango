@@ -3,10 +3,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
-import DocumentViewer from './DocumentViewer';
+import LessonDocViewer from './LessonDocViewer';
+import UserUploadDocViewer from './UserUploadDocViewer';
 import SidePanel from './SidePanel';
 import {
   Sheet,
@@ -15,106 +13,101 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { MessageCircle } from 'lucide-react';
 import type { LessonJsonV1 } from '@/types/store_material';
+import type { SentenceRecord } from '@/lib/processUserMaterial';
 
 
 interface Props {
   material: any;
   worksheet: any;
-  chunks: any[];
   lessonJson?: LessonJsonV1 | null;
 }
 
-export default function LearningView({ material, worksheet, chunks, lessonJson }: Props) {
-  const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
+export default function LearningView({ material, worksheet, lessonJson }: Props) {
   const [selectedText, setSelectedText] = useState('');
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
-  const isStoreLesson =
+    // 🔹 새로 추가: 업로드 JSON 문장 메타
+  const [selectedSentenceMeta, setSelectedSentenceMeta] =
+    useState<SentenceRecord | null>(null);
+
+  const isLesson =
     material?.source === 'store' && material?.file_type === 'lesson-json-v1';
-
-  const currentChunk = !isStoreLesson
-    ? chunks[currentChunkIndex]
-    : null;
-
-  const content = !isStoreLesson
-    ? currentChunk?.content ?? ''
-    : ''; // lesson 모드에선 content는 안 씀
-
-  const progress =
-    !isStoreLesson && chunks.length > 0
-      ? Math.round(((currentChunkIndex + 1) / chunks.length) * 100)
-      : 0;
-
-  const handlePrevChunk = () => {
-    if (isStoreLesson) return;
-    setCurrentChunkIndex((prev) => Math.max(0, prev - 1));
-  };
-
-  const handleNextChunk = () => {
-    if (isStoreLesson) return;
-    setCurrentChunkIndex((prev) =>
-      Math.min(chunks.length - 1, prev + 1),
-    );
-  };
 
   const handleSentenceSelect = (text: string) => {
     setSelectedText(text);
+  };
+
+    // 🔹 새로 추가: SentenceRecord 전체 저장
+  const handleSentenceMetaSelect = (s: SentenceRecord) => {
+    setSelectedSentenceMeta(s);
+  };
+
+  const handleOpenMobileSheet = () => {
+    setMobileSheetOpen(true);
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <main className="flex-1 px-4 md:px-8 py-6 md:py-8">
         <div className="max-w-[1440px] mx-auto h-full">
-
           {/* Desktop & Tablet: Two Column Layout */}
           <div className="hidden md:grid md:grid-cols-[1fr_400px] lg:grid-cols-[1fr_480px] gap-6 h-[calc(100vh-180px)]">
-            {/* 좌측: 새 디자인 DocumentViewer */}
-            <DocumentViewer
-              mode={isStoreLesson ? 'lesson' : 'chunk'}      
-              lesson={isStoreLesson ? lessonJson : undefined} 
-              content={content}
-              title={material.title}
-              author={material.author}
-              cefrLevel={worksheet?.cefr_level ?? lessonJson?.cefrLevel}
-              progress={progress}
-              onSentenceSelect={handleSentenceSelect}
-              currentChunkIndex={isStoreLesson ? 0 : currentChunkIndex}
-              totalChunks={isStoreLesson ? 1 : chunks.length}
-              onPrevChunk={handlePrevChunk}
-              onNextChunk={handleNextChunk}
-            />
+            {/* 좌측: 레슨 / 업로드 교재 뷰어 */}
+            {isLesson ? (
+              <LessonDocViewer
+                title={material.title}
+                author={material.author}
+                cefrLevel={worksheet?.cefr_level ?? lessonJson?.cefrLevel}
+                lesson={lessonJson ?? null} // LessonDocViewer에서 LessonJsonV1 | null 받도록 타입 수정 권장
+                onSentenceSelect={handleSentenceSelect}
+              />
+            ) : (
+              <UserUploadDocViewer
+                title={material.title}
+                author={material.author}
+                cefrLevel={worksheet?.cefr_level ?? null}
+                userJsonUrl={material.file_url}
+                onSentenceSelect={handleSentenceSelect}
+                onSentenceMetaSelect={handleSentenceMetaSelect}
+              />
+            )}
 
             {/* 우측: 사이드 패널 */}
             <SidePanel
               materialId={material.id}
               worksheetId={worksheet?.id}
-              chunkId={currentChunk?.id}
+              chunkId={undefined} // chunk 모델 폐기, 더 이상 사용 안 함
               selectedText={selectedText}
+              selectedSentenceMeta={selectedSentenceMeta}
             />
           </div>
 
-          {/* Mobile: Full Width Document + Floating Button + Sheet */}
+          {/* Mobile: Document + Floating Button + Bottom Sheet */}
           <div className="md:hidden">
-            <Card className="h-[calc(100vh-220px)] overflow-hidden">
-              <CardContent className="h-full overflow-auto pt-4">
-                <DocumentViewer
-                  mode={isStoreLesson ? 'lesson' : 'chunk'}
-                  lesson={isStoreLesson ? lessonJson : undefined}
-                  content={content}
+            <div className="h-[calc(100vh-220px)] overflow-hidden">
+              {isLesson ? (
+                <LessonDocViewer
                   title={material.title}
                   author={material.author}
                   cefrLevel={worksheet?.cefr_level ?? lessonJson?.cefrLevel}
-                  progress={progress}
+                  lesson={lessonJson ?? null}
                   onSentenceSelect={handleSentenceSelect}
-                  onMobileSheetOpen={() => setMobileSheetOpen(true)}
-                  currentChunkIndex={isStoreLesson ? 0 : currentChunkIndex}
-                  totalChunks={isStoreLesson ? 1 : chunks.length}
-                  onPrevChunk={handlePrevChunk}
-                  onNextChunk={handleNextChunk}
+                  onMobileSheetOpen={handleOpenMobileSheet}
                 />
-              </CardContent>
-            </Card>
+              ) : (
+                <UserUploadDocViewer
+                  title={material.title}
+                  author={material.author}
+                  cefrLevel={worksheet?.cefr_level ?? null}
+                  userJsonUrl={material.file_url}
+                  onSentenceSelect={handleSentenceSelect}
+                  onMobileSheetOpen={handleOpenMobileSheet}
+                  onSentenceMetaSelect={handleSentenceMetaSelect}
+                />
+              )}
+            </div>
 
             <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
               <SheetTrigger asChild>
@@ -141,8 +134,9 @@ export default function LearningView({ material, worksheet, chunks, lessonJson }
                   <SidePanel
                     materialId={material.id}
                     worksheetId={worksheet?.id}
-                    chunkId={currentChunk?.id}
+                    chunkId={undefined}
                     selectedText={selectedText}
+                    selectedSentenceMeta={selectedSentenceMeta}
                   />
                 </div>
               </SheetContent>
