@@ -1,0 +1,164 @@
+paragraph: 문단 번호 (0, 1, …)
+
+sentence_id: 문단과 상관없이 전체에서 유일한 문장 ID (0, 1, 2, 3, …)
+
+text: 원문 문장
+
+translate: 번역 (초기에는 빈 문자열)
+
+structure: S + V + O + ... 처럼 일관된 패턴으로 표현한 문장 구조
+
+key_point: 그 문장의 문법/구조에 대한 핵심 포인트들(설명 문장들)
+
+[
+  {
+    "paragraph": 0,
+    "sentence_id": 0,
+    "text": "The morning air has grown a little cooler lately.",
+    "translate": "아침 공기가 요즘 조금 더 서늘해졌다.",
+    "structure": "S(The morning air) + V(has grown: 현재완료) + C(a little cooler: 비교급 형용사구) + Adv(lately: 시간 부사)",
+    "key_point": "현재완료(has grown)은 최근까지 이어진 변화 표현; C는 상태 변화를 나타내는 보어; 'a little'은 비교급을 약하게 만드는 정도 부사; 'lately'는 '최근에'라는 의미의 빈도/시간 부사."
+  },
+  {
+    "paragraph": 0,
+    "sentence_id": 1,
+    "text": "When I open the window, a different scent drifts in compared to yesterday.",
+    "translate": "창문을 열면 어제와는 다른 향기가 스며든다.",
+    "structure": "Adv.Cl(When I open the window: 시간 부사절) + S(a different scent) + V(drifts in: 자동사 + 부사구/구동사) + Adv.P(compared to yesterday: 비교를 나타내는 전치사구)",
+    "key_point": "시간 부사절 When S + V는 반복되는 일반 상황 설명에 현재형 사용; 'drift in'은 '스며들다/흘러들어오다' 의미의 구동사; 'compared to ~'는 기준 시점과 비교를 나타내는 표현."
+  },
+  {
+    "paragraph": 0,
+    "sentence_id": 2,
+    "text": "That small change makes the start of my day feel a bit gentler.",
+    "translate": "그 작은 변화가 하루의 시작을 조금 더 부드럽게 느껴지게 한다.",
+    "structure": "S(That small change) + V(makes) + O(the start of my day) + OC(feel a bit gentler: 동사원형 feel + 보어 a bit gentler)",
+    "key_point": "사역동사 make + O + 동사원형 구조; 'feel + 형용사'는 감정/상태를 나타내는 연계동사 구조; 'a bit'은 형용사 gentler를 약하게 만드는 정도 부사."
+  },
+  {
+    "paragraph": 1,
+    "sentence_id": 3,
+    "text": "By noon, the sunlight regains its strength.",
+    "translate": "정오가 되면 햇빛은 다시 힘을 되찾는다.",
+    "structure": "Adv.P(By noon: 시간 한계를 나타내는 전치사구) + S(the sunlight) + V(regains) + O(its strength)",
+    "key_point": "'By + 시간'은 그때까지 변화가 완료됨을 암시; 'regain'은 '다시 되찾다' 의미의 타동사; S–V–O의 기본 문형에 시간 부사구가 문두에 나와 강조 효과."
+  },
+  {
+    "paragraph": 1,
+    "sentence_id": 4,
+    "text": "People slow their steps for a moment under the warm glow.",
+    "translate": "사람들은 따스한 빛 아래에서 잠시 걸음을 늦춘다.",
+    "structure": "S(People) + V(slow: 타동사로 사용) + O(their steps) + Adv.P(for a moment: 시간 전치사구) + Adv.P(under the warm glow: 장소 전치사구)",
+    "key_point": "'slow'가 형용사뿐 아니라 동사로도 쓰인다는 점(속도를 늦추다); 목적어 their steps로 '걸음'을 늦춘다는 의미; 전치사구 for a moment, under the warm glow가 시간·공간 배경을 추가."
+  },
+  {
+    "paragraph": 1,
+    "sentence_id": 5,
+    "text": "In that brief pause, an ordinary day feels slightly more special.",
+    "translate": "그 짧은 멈춤 속에서 평범한 하루가 조금 더 특별하게 느껴진다.",
+    "structure": "Adv.P(In that brief pause) + S(an ordinary day) + V(feels: 연계동사) + C(slightly more special: 정도부사 slightly + 비교급 형용사구)",
+    "key_point": "feel이 감정/상태를 나타내는 연계동사로 쓰여 S–V–C 문형 형성; 'slightly'는 비교급 more special을 약하게 높여주는 정도 부사; 문두 전치사구 In that brief pause로 상황(맥락)을 먼저 제시."
+  }
+]
+
+[
+  {
+    "paragraph": 0,
+    "sentence_id": 0,
+    "text": "L’air du matin est devenu un peu plus frais ces derniers temps.",
+    "translate": "아침 공기는 요즘 조금 더 서늘해졌다.",
+    "structure": "S(L’air du matin) + V(est devenu: 동사 devenir의 복합과거, 상태 변화) + C(un peu plus frais: 비교급 형용사 보어) + Adv(ces derniers temps: 최근을 나타내는 시간 부사구)",
+    "key_point": "프랑스어에서 상태 변화는 'être + 과거분사(devenu)' 구조로 자주 표현; 'un peu plus'는 비교급를 약하게 만드는 정도 표현; 'ces derniers temps'는 영어의 'lately'에 해당하는 최근 경향 표현."
+  },
+  {
+    "paragraph": 0,
+    "sentence_id": 1,
+    "text": "Quand j’ouvre la fenêtre, un parfum différent de celui d’hier entre doucement.",
+    "translate": "창문을 열면 어제와는 다른 향기가 부드럽게 스며든다.",
+    "structure": "Adv.Cl(Quand j’ouvre la fenêtre: 시간 부사절) + S(un parfum différent de celui d’hier) + V(entre: 들어오다) + Adv(doucement: 방식 부사)",
+    "key_point": "Quand + 주어 + 현재형은 반복되는 일반적인 상황을 나타냄; 'un parfum différent de celui d’hier'에서 'de celui d’hier'는 이전 날의 향기와 비교하는 부분; 'doucement'는 동사 entre를 수식하는 방식 부사로 '부드럽게/살며시'의 뉘앙스."
+  },
+  {
+    "paragraph": 0,
+    "sentence_id": 2,
+    "text": "Ce petit changement rend le début de ma journée un peu plus doux.",
+    "translate": "그 작은 변화가 하루의 시작을 조금 더 부드럽게 만든다.",
+    "structure": "S(Ce petit changement) + V(rend: 동사 rendre) + O(le début de ma journée) + OC(un peu plus doux: 비교급 형용사 보어)",
+    "key_point": "rendre + 목적어 + 형용사 구조는 영어 make O + adj에 해당; 'le début de ma journée'는 '내 하루의 시작'이라는 명사구; 'un peu plus doux'는 '조금 더 부드러운' 상태를 나타내는 비교급 보어."
+  },
+  {
+    "paragraph": 1,
+    "sentence_id": 3,
+    "text": "À midi, la lumière du soleil retrouve sa force.",
+    "translate": "정오가 되면 햇빛은 다시 힘을 되찾는다.",
+    "structure": "Adv.P(À midi: 시간 전치사구) + S(la lumière du soleil) + V(retrouve) + O(sa force)",
+    "key_point": "À + 시간 표현은 특정 시점을 나타내는 전치사구; 'la lumière du soleil'은 '태양빛/햇빛'을 나타내는 명사구; 'retrouver sa force'는 '힘을 회복하다'라는 관용적 표현으로, 상황의 변화를 묘사."
+  },
+  {
+    "paragraph": 1,
+    "sentence_id": 4,
+    "text": "Les gens ralentissent un instant leur pas sous cette chaleur douce.",
+    "translate": "사람들은 이 부드러운 따스함 속에서 잠시 걸음을 늦춘다.",
+    "structure": "S(Les gens) + V(ralentissent: 능동 현재) + O(leur pas: 발걸음) + Adv(un instant: 짧은 시간 표현) + Adv.P(sous cette chaleur douce: 상태/환경을 나타내는 전치사구)",
+    "key_point": "ralentir는 속도를 늦추다라는 의미의 동사; 목적어 'leur pas'로 실제로 늦추는 대상(걸음)을 구체화; 'un instant'는 동사 ralentissent를 수식하는 짧은 시간 표현; 'sous cette chaleur douce'는 분위기와 감각적 배경을 덧붙이는 전치사구."
+  },
+  {
+    "paragraph": 1,
+    "sentence_id": 5,
+    "text": "Dans cette courte pause, une journée ordinaire paraît un peu plus spéciale.",
+    "translate": "이 짧은 멈춤 속에서 평범한 하루가 조금 더 특별하게 느껴진다.",
+    "structure": "Adv.P(Dans cette courte pause: 상황을 제시하는 전치사구) + S(une journée ordinaire) + V(paraît: 연계동사, ~처럼 보이다/느껴지다) + C(un peu plus spéciale: 비교급 형용사 보어)",
+    "key_point": "paraître는 감각적으로 '…처럼 보이다/느껴지다'를 나타내는 연계동사; 'une journée ordinaire'는 기본적으로 평범한 날이라는 명사구; 'un peu plus spéciale'는 비교급 보어로, 일상성이 살짝 상승하는 뉘앙스를 주는 표현."
+  }
+]
+
+[
+  {
+    "paragraph": 0,
+    "sentence_id": 0,
+    "text": "最近、朝の空気が少し涼しくなってきた。",
+    "translate": "최근 아침 공기가 조금 서늘해지기 시작했다.",
+    "structure": "Adv(最近) + S(朝の空気) + が + V(涼しくなってきた: 상태 변화 + 진행, ~해지기 시작했다)",
+    "key_point": "'~くなる'는 형용사(涼しい)의 변화 표현; 'なってきた'는 변화가 진행 중이며 최근까지 이어진 뉘앙스; 일본어 문두의 Adv(最近)는 시간 배경 설정 역할."
+  },
+  {
+    "paragraph": 0,
+    "sentence_id": 1,
+    "text": "窓を開けると、昨日とは違う香りがふわっと入り込んでくる。",
+    "translate": "창문을 열면 어제와는 다른 향기가 후와득 스며든다.",
+    "structure": "S(窓) + を + V(開ける: 동작) + と(조건/시간 접속) + S(香り) + が + Adv(ふわっと: 부드럽게/살짝) + V(入り込んでくる: 들어오다 + 움직임 방향)",
+    "key_point": "‘〜を開けると’는 반복되는 상황의 조건/시간 표현; '昨日とは違う'는 비교를 나타내는 구문; 'ふわっと'은 동작의 방식 표현; '入り込んでくる'는 안쪽으로 스며들어 오는 움직임을 나타내는 복합동사."
+  },
+  {
+    "paragraph": 0,
+    "sentence_id": 2,
+    "text": "その小さな変化が、1日の始まりを少しだけ優しくしてくれる。",
+    "translate": "그 작은 변화가 하루의 시작을 조금 더 부드럽게 해준다.",
+    "structure": "S(その小さな変化) + が + O(1日の始まり) + を + Adv(少しだけ) + Adj(優しく) + してくれる(V: ~하게 해주다)",
+    "key_point": "'〜を〜してくれる'는 누군가에게 긍정적인 영향을 주는 표현; 1日の始まり는 명사구로 '하루의 시작'; ‘少しだけ’는 정도를 약하게 조절하는 부사; 전체적으로 사물의 변화가 감정적 영향을 준다는 구조."
+  },
+  {
+    "paragraph": 1,
+    "sentence_id": 3,
+    "text": "昼頃になると、日差しがまた力を取り戻す。",
+    "translate": "정오쯤이 되면 햇살이 다시 힘을 되찾는다.",
+    "structure": "Adv(昼頃になると: 시간이 되면) + S(日差し) + が + O(力) + を + V(取り戻す: 되찾다)",
+    "key_point": "'〜になると'는 특정 시간이 되면 자연스럽게 발생하는 상황을 표현; '取り戻す'는 잃었던 힘·상태를 회복하는 동사; 日差し(햇살)가 주어로 쓰여 자연 현상의 변화를 묘사."
+  },
+  {
+    "paragraph": 1,
+    "sentence_id": 4,
+    "text": "人々は暖かな光の下で、しばらく足をゆるめる。",
+    "translate": "사람들은 따뜻한 빛 아래에서 잠시 걸음을 늦춘다.",
+    "structure": "S(人々) + は + Adv.P(暖かな光の下で: 장소 배경) + Adv(しばらく) + O(足) + を + V(ゆるめる: 늦추다)",
+    "key_point": "'〜の下で'는 어떤 환경·조건 아래에서 행동이 일어남을 나타내는 표현; 足をゆるめる는 '걸음을 늦추다'라는 행동 묘사; しばらく은 짧은 시간 부사로 동작의 지속 기간을 강조."
+  },
+  {
+    "paragraph": 1,
+    "sentence_id": 5,
+    "text": "そのわずかな時間に、普通の1日が少し特別に感じられる.",
+    "translate": "그 잠깐의 시간 속에서 평범한 하루가 조금 특별하게 느껴진다.",
+    "structure": "Adv.P(そのわずかな時間に: 시간/상황 전치사구) + S(普通の1日) + が + Adv(少し) + Adj(特別に: 부사형) + V(感じられる: 느껴지다, 자동사적 수동)",
+    "key_point": "'〜に'는 상황/시간 배경을 나타내며 감정 변화를 수반하는 표현에 자주 쓰임; '感じられる'는 자연스럽게 감정·상태가 느껴짐을 나타내는 가능·수동적 쓰임; '少し特別に'는 상태가 살짝 변하는 느낌을 전달."
+  }
+]

@@ -2,15 +2,37 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-import { invokeLLM } from '@/lib/openai';
-import { SYSTEM_PROMPTS } from '@/lib/prompts';
-import { parseJSONFromLLM, calculateCreditCost } from '@/lib/utils';
+import { processUserMaterial } from '@/lib/processUserMaterial';
+
+// ---- 업로드 정책 상수 ----
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_EXTENSION = '.txt';
+
+// 파일 확장자 체크
+function hasAllowedExtension(fileName: string) {
+  return fileName.toLowerCase().endsWith(ALLOWED_EXTENSION);
+}
+
+// 파일 유효성 검증 (문제 있으면 Error 던짐)
+function validateFileOrThrow(file: File | null) {
+  if (!file) {
+    throw new Error('파일이 존재하지 않습니다.');
+  }
+
+  if (!hasAllowedExtension(file.name)) {
+    throw new Error('현재 TXT 파일만 지원합니다. PDF와 EPUB은 추후 지원 예정입니다.');
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('파일 크기는 10MB를 초과할 수 없습니다');
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
-    
-    // 인증 확인
+
+    // 1) 인증 확인
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -19,202 +41,120 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '인증이 필요합니다' }, { status: 401 });
     }
 
-    // 요청 데이터 파싱
+    // 2) formData 파싱
     const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const title = formData.get('title') as string;
-    const author = formData.get('author') as string | null;
-    const folderId = formData.get('folderId') as string | null;
+    const file = formData.get('file') as File | null;
+    const titleRaw = formData.get('title') as string | null;
+    const authorRaw = formData.get('author') as string | null;
+    const folderIdRaw = formData.get('folderId') as string | null;
 
-    if (!file || !title) {
-      return NextResponse.json({ error: '파일과 제목은 필수입니다' }, { status: 400 });
+    // 3) 파일 유효성 검증
+    try {
+      validateFileOrThrow(file);
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
     }
 
-    // 파일 타입 검증 (MVP는 TXT만)
-    if (!file.name.endsWith('.txt')) {
-      return NextResponse.json(
-        { error: '현재 TXT 파일만 지원합니다. PDF와 EPUB은 추후 지원 예정입니다.' },
-        { status: 400 }
-      );
-    }
+    // 여기까지 왔으면 file은 존재하고 유효한 TXT 파일
+    const safeFile = file as File;
 
-    // 파일 크기 검증 (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: '파일 크기는 10MB를 초과할 수 없습니다' },
-        { status: 400 }
-      );
-    }
+    // title / author 없으면 기본값 세팅
+    const title =
+      titleRaw?.trim() && titleRaw.trim().length > 0
+        ? titleRaw.trim()
+        : safeFile.name.replace(/\.[^/.]+$/, ''); // 확장자 제거한 파일명
 
-    // 파일 읽기
-    const textContent = await file.text();
+    const author =
+      authorRaw?.trim() && authorRaw.trim().length > 0 ? authorRaw.trim() : 'user';
 
-    // Supabase Storage에 업로드
-    const fileName = `${user.id}/${Date.now()}-${file.name}`;
+    const folderId =
+      folderIdRaw && !Number.isNaN(parseInt(folderIdRaw, 10))
+        ? parseInt(folderIdRaw, 10)
+        : null;
+
+    // 4) 파일 텍스트 읽기
+    const textContent = await safeFile.text();
+
+    // 5) LLM 파이프라인 실행
+    //    - 문단/문장 파싱
+    //    - translate / structure / key_point 채우기
+    //    - 최종 JSON 바이트 생성
+    const { sentences, jsonBytes } = await processUserMaterial({
+      textContent,
+    });
+
+    // 6) Supabase Storage에 JSON 업로드
+    const bucket = 'materials'; // JSON용으로 계속 재사용
+    const baseName = safeFile.name.replace(/\.[^/.]+$/, '');
+    const jsonPath = `${user.id}/json/${Date.now()}-${baseName}.json`;
+
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('materials')
-      .upload(fileName, file);
+      .from(bucket)
+      .upload(jsonPath, jsonBytes, {
+        contentType: 'application/json',
+        upsert: false,
+      });
 
     if (uploadError) {
-      console.error('Storage upload error:', uploadError);
-      return NextResponse.json({ error: '파일 업로드 중 오류가 발생했습니다' }, { status: 500 });
+      console.error('[material] json upload error:', uploadError);
+      return NextResponse.json(
+        { error: '가공된 JSON 파일 업로드 중 오류가 발생했습니다' },
+        { status: 500 },
+      );
     }
 
-    // 파일 URL 가져오기
     const {
-      data: { publicUrl },
-    } = supabase.storage.from('materials').getPublicUrl(fileName);
+      data: { publicUrl: jsonUrl },
+    } = supabase.storage.from(bucket).getPublicUrl(jsonPath);
 
-    // 교재 레코드 생성
+    // 7) 메타데이터 계산
+    const wordCount = textContent
+      .split(/\s+/)
+      .filter((w) => w.trim().length > 0).length;
+
+    const paragraphCount =
+      sentences.reduce(
+        (max, s) => (s.paragraph > max ? s.paragraph : max),
+        0,
+      ) + 1;
+
+    const sentenceCount = sentences.length;
+
+    // 8) materials 테이블에 레코드 생성
     const { data: material, error: materialError } = await supabase
       .from('materials')
       .insert({
         user_id: user.id,
-        folder_id: folderId ? parseInt(folderId) : null,
+        folder_id: folderId,
         title,
         author,
-        file_type: 'txt',
-        file_url: publicUrl,
-        file_size: file.size,
-        status: 'processing',
-        metadata: {},
+        file_type: 'json',          // 🔹 이제는 json 기준
+        file_url: jsonUrl,          // 가공된 JSON 파일 URL
+        file_size: jsonBytes.byteLength,
+        status: 'ready',            // 이미 처리 끝
+        metadata: {
+          jsonPath,
+          wordCount,
+          paragraphCount,
+          sentenceCount,
+          processedAt: new Date().toISOString(),
+        },
       })
       .select()
       .single();
 
-    if (materialError) {
-      console.error('Material creation error:', materialError);
-      return NextResponse.json({ error: '교재 생성 중 오류가 발생했습니다' }, { status: 500 });
+    if (materialError || !material) {
+      console.error('[material] material insert error:', materialError);
+      return NextResponse.json(
+        { error: '교재 레코드 생성 중 오류가 발생했습니다' },
+        { status: 500 },
+      );
     }
 
-    // 백그라운드에서 처리 (청킹 + 학습지 생성)
-    processMaterialInBackground(material.id, textContent, user.id);
-
+    // 9) 클라이언트에 material 반환 (기존 프론트 구조와 호환)
     return NextResponse.json({ material }, { status: 201 });
   } catch (error) {
     console.error('Upload error:', error);
     return NextResponse.json({ error: '업로드 중 오류가 발생했습니다' }, { status: 500 });
-  }
-}
-
-// 백그라운드 처리 함수
-async function processMaterialInBackground(
-  materialId: number,
-  textContent: string,
-  userId: string
-) {
-  try {
-    console.log('[material] background start', { materialId, userId });
-
-    const supabase = await createClient();
-
-    // 1. 텍스트를 청크로 분할 (약 500자씩)
-    const chunkSize = 5000;
-    const chunks: any[] = [];
-    let startPosition = 0;
-
-    while (startPosition < textContent.length) {
-      const endPosition = Math.min(startPosition + chunkSize, textContent.length);
-      const content = textContent.substring(startPosition, endPosition);
-
-      chunks.push({
-        material_id: materialId,
-        content,
-        chunk_index: chunks.length,
-        start_position: startPosition,
-        end_position: endPosition,
-        metadata: {},
-      });
-
-      startPosition = endPosition;
-    }
-
-    console.log('[material] inserting chunks', { materialId, chunkCount: chunks.length });
-
-    const { error: chunksError } = await supabase.from('chunks').insert(chunks);
-    if (chunksError) {
-      console.error('[material] chunks insert error', chunksError);
-      throw chunksError;
-    }
-
-    // 2. LLM으로 학습지 생성
-    const worksheetPrompt = `다음 텍스트를 분석하여 학습지를 생성하세요:\n\n${textContent.substring(0, 5000)}...`;
-
-    console.log('[material] calling LLM for worksheet', { materialId });
-
-    const worksheetContent = await invokeLLM({
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPTS.WORKSHEET_GENERATION },
-        { role: 'user', content: worksheetPrompt },
-      ],
-    });
-
-    console.log('[material] raw LLM output (worksheet)', worksheetContent);
-
-    const parsedWorksheet = parseJSONFromLLM(worksheetContent);
-
-    console.log('[material] parsed worksheet', parsedWorksheet);
-
-    // 학습지 저장
-    const { error: worksheetError } = await supabase.from('worksheets').insert({
-      material_id: materialId,
-      user_id: userId,
-      title: parsedWorksheet.title || '자동 생성 학습지',
-      description: parsedWorksheet.description || '',
-      content: parsedWorksheet,
-    });
-
-    if (worksheetError) {
-      console.error('[material] worksheet insert error', worksheetError);
-      throw worksheetError;
-    }
-
-    // 3. 크레딧 차감
-    const creditCost =
-      calculateCreditCost('WORKSHEET_GENERATION') +
-      chunks.length * calculateCreditCost('CHUNK_PROCESSING');
-
-    const { error: creditError } = await supabase.rpc('deduct_credit', {
-      p_user_id: userId,
-      p_amount: creditCost,
-      p_description: '교재 업로드 및 학습지 생성',
-    });
-
-    if (creditError) {
-      console.error('[material] deduct_credit error', creditError);
-      // 여기서 throw 하면 전체 파이프라인이 failed로 가니까,
-      // "크레딧 차감 실패는 비치명적"으로 보고 그냥 로그만 남기고 넘어가는 것도 방법.
-      // throw creditError;  ← 이건 웬만하면 빼는 걸 추천
-    }
-
-    // 4. 상태를 ready로 변경
-    const wordCount = textContent.split(/\s+/).filter((word) => word.length > 0).length;
-
-    const { error: updateError } = await supabase
-      .from('materials')
-      .update({
-        status: 'ready',
-        metadata: {
-          processedAt: new Date().toISOString(),
-          wordCount,
-          chunkCount: chunks.length,
-        },
-      })
-      .eq('id', materialId);
-
-    if (updateError) {
-      console.error('[material] materials update error', updateError);
-      throw updateError;
-    }
-
-    console.log('[material] background completed', { materialId });
-  } catch (error) {
-    console.error('Material processing error:', error);
-
-    const supabase = await createClient();
-    await supabase
-      .from('materials')
-      .update({ status: 'failed' })
-      .eq('id', materialId);
   }
 }

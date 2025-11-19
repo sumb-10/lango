@@ -93,6 +93,7 @@ export default function DashboardPageClient() {
 
             // 목록 갱신
             await fetchMaterials();
+            toast.success("교재가 완전히 업로드되었습니다.");
         } catch (err: any) {
             console.error(err);
             toast.error(err?.message || "업로드 실패");
