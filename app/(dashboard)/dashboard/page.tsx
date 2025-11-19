@@ -1,7 +1,7 @@
 // app/(dashboard)/dashboard/page.tsx
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
     Upload,
     FileText,
-    Settings,
-    Plus,
     PenTool,
     BookOpen,
     CreditCard,
@@ -46,7 +44,7 @@ interface Stats {
 }
 
 export default function DashboardPageClient() {
-    const { user, loading, logout } = useAuth();
+    const { user, loading } = useAuth();
     const router = useRouter();
 
     const [materials, setMaterials] = useState<Material[]>([]);
@@ -54,13 +52,57 @@ export default function DashboardPageClient() {
     const [loadingMaterials, setLoadingMaterials] = useState(false);
     const [loadingStats, setLoadingStats] = useState(false);
 
-    const [showUploadModal, setShowUploadModal] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
     const [uploading, setUploading] = useState(false);
-    const [uploadForm, setUploadForm] = useState({
-        title: "",
-        author: "",
-        file: null as File | null,
-    });
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // 파일 이름에서 확장자(.txt 등) 제거한 걸 제목으로 사용
+        const title = file.name.replace(/\.[^/.]+$/, "");
+        const author = "user";
+
+        setUploading(true);
+
+        try {
+            const formData = new FormData();
+            formData.append("title", title);
+            formData.append("author", author);
+            formData.append("file", file);
+
+            const res = await fetch("/api/materials/upload", {
+            method: "POST",
+            credentials: "include",
+            body: formData,
+            });
+
+            if (!res.ok) {
+            const errBody = await res.json().catch(() => null);
+            throw new Error(errBody?.error || "Upload failed");
+            }
+
+            const data = await res.json();
+            const material = data.material;
+
+            if (!material?.id) {
+            throw new Error("업로드 응답에 material id가 없습니다");
+            }
+
+            toast.success("교재가 업로드되고 처리가 시작되었습니다");
+
+            // 목록 갱신
+            await fetchMaterials();
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err?.message || "업로드 실패");
+        } finally {
+            setUploading(false);
+            // 같은 파일 다시 선택해도 onChange가 잘 호출되도록 리셋
+            e.target.value = "";
+        }
+    };
+
 
     // track processing state per material id
     const [processingIds, setProcessingIds] = useState<number[]>([]);
@@ -97,22 +139,6 @@ export default function DashboardPageClient() {
         }
     };
 
-
-    const fetchStats = async () => {
-        try {
-            setLoadingStats(true);
-            const res = await fetch("/api/dashboard/stats", { credentials: "include" });
-            if (!res.ok) throw new Error("Failed to load stats");
-            const data = await res.json();
-            setStats(data || null);
-        } catch (err: any) {
-            console.error(err);
-            toast.error(err?.message || "통계 로드에 실패했습니다");
-        } finally {
-            setLoadingStats(false);
-        }
-    };
-
     useEffect(() => {
         fetchMaterials();
         //fetchStats();
@@ -145,61 +171,6 @@ export default function DashboardPageClient() {
         );
     }
 
-    const handleUpload = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!uploadForm.file) {
-            toast.error("파일을 선택하세요");
-            return;
-        }
-
-        setUploading(true);
-
-        try {
-            const formData = new FormData();
-            formData.append("title", uploadForm.title);
-            if (uploadForm.author) {
-            formData.append("author", uploadForm.author);
-            }
-            // 폴더 기능 쓰고 있으면 여기서 같이 추가
-            // formData.append("folderId", String(folderId));
-            formData.append("file", uploadForm.file); // ✅ 실제 File 객체
-
-            const res = await fetch("/api/materials/upload", {
-            method: "POST",
-            credentials: "include",
-            body: formData, // ✅ Content-Type 직접 설정하지 말 것!
-            });
-
-            if (!res.ok) {
-            const errBody = await res.json().catch(() => null);
-            throw new Error(errBody?.error || "Upload failed");
-            }
-
-            // 🔹 업로드된 material 정보 받기
-            const data = await res.json();
-            const material = data.material;
-
-            if (!material?.id) {
-            throw new Error("업로드 응답에 material id가 없습니다");
-            }
-            
-            toast.success("교재가 업로드되고 처리가 시작되었습니다");
-            setShowUploadModal(false);
-            setUploadForm({ title: "", author: "", file: null });
-
-            // refresh list & stats
-            await fetchMaterials();
-            // await fetchStats(); // 필요하면 다시 살리기
-        } catch (err: any) {
-            console.error(err);
-            toast.error(err?.message || "업로드 실패");
-        } finally {
-            setUploading(false);
-        }
-    };
-
-
     const handleProcess = async (materialId: number) => {
         try {
             setProcessingIds((ids) => [...ids, materialId]);
@@ -225,14 +196,6 @@ export default function DashboardPageClient() {
         }
     };
 
-    if (!user) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-bg">
-                <div className="text-muted-ink">로그인이 필요합니다</div>
-            </div>
-        );
-    }
-
     const handleCreateFolderClick = () => {
     // 나중에 여기서 폴더 생성 다이얼로그 or API 연결
     toast.info("폴더 생성은 곧 /materials 페이지와 함께 연결할 예정입니다.");
@@ -246,37 +209,18 @@ export default function DashboardPageClient() {
             <div className="flex-1 flex flex-col">
                 <Header variant="dashboard" />
 
-                {/* Stats Bar */}
-                <div className="border-b border-lango bg-surface px-4 md:px-8 py-4">
-                    <div className="container flex items-center justify-between">
-                        <div className="flex items-center gap-8">
-                            <div>
-                                <div className="text-sm text-muted-ink">크레딧 잔액</div>
-                                <div className="text-xl font-bold text-primary">{stats?.user.creditBalance ?? 0}</div>
-                            </div>
-                            <div>
-                                <div className="text-sm text-muted-ink">교재</div>
-                                <div className="text-xl font-bold text-ink">{stats?.materials.total ?? 0}</div>
-                            </div>
-                            <div>
-                                <div className="text-sm text-muted-ink">완료한 학습</div>
-                                <div className="text-xl font-bold text-ink">{stats?.learning.completedSessions ?? 0}</div>
-                            </div>
-                        </div>
-                        <Link href="/credit">
-                            <Button variant="outline" className="gap-2">
-                                <CreditCard className="h-4 w-4" />
-                                크레딧 충전
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
-
                 {/* Main Content */}
                 <main className="flex-1 px-4 md:px-8 py-6 overflow-auto">
+                    <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    />
                     <div className="container">
                         {/* Quick Actions */}
-                        <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
                             <button
                                 onClick={handleCreateFolderClick}
                                 className="p-6 bg-surface border-2 border-dashed border-primary/40 hover:border-primary/60 rounded-lg transition-all text-left group"
@@ -289,8 +233,9 @@ export default function DashboardPageClient() {
                             </button>
 
                             <button
-                                onClick={() => setShowUploadModal(true)}
-                                className="p-6 bg-surface border-2 border-dashed border-primary/40 hover:border-primary/60 rounded-lg transition-all text-left group"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading}
+                                className="p-6 bg-surface border-2 border-dashed border-primary/40 hover:border-primary/60 rounded-lg transition-all text-left group disabled:opacity-60"
                             >
                                 <Upload className="h-8 w-8 text-primary mb-3" />
                                 <h3 className="font-semibold text-ink mb-1">새 교재 업로드</h3>
@@ -302,12 +247,15 @@ export default function DashboardPageClient() {
                                 <h3 className="font-semibold text-ink mb-1">긴글 작문 평가</h3>
                                 <p className="text-sm text-muted-ink">작문을 제출하고 AI 평가를 받으세요</p>
                             </Link>
-
+                            {
+                            /* 추후 구현 예정
                             <Link href="/vocabulary" className="block p-6 bg-surface border-2 border-dashed border-primary/40 hover:border-primary/60 rounded-lg transition-all group">
                                 <BookOpen className="h-8 w-8 text-primary mb-3" />
                                 <h3 className="font-semibold text-ink mb-1">단어장 복습</h3>
-                                <p className="text-sm text-muted-ink">{stats?.vocabulary.dueForReview ?? 0}개의 단어가 복습 대기 중</p>
-                            </Link>
+                                <p className="text-sm text-muted-ink">단어를 복습해보아요.</p>
+                            </Link>*/
+                            }
+
                         </div>
 
                         {/* Materials Grid */}
@@ -317,7 +265,11 @@ export default function DashboardPageClient() {
                             {materials && materials.length === 0 && (
                                 <div className="text-center py-12 bg-surface rounded-lg border border-lango">
                                     <p className="text-muted-ink">아직 업로드된 교재가 없습니다.</p>
-                                    <Button onClick={() => setShowUploadModal(true)} className="mt-4 bg-primary hover:bg-primary/90">
+                                    <Button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploading}
+                                    className="mt-4 bg-primary hover:bg-primary/90 disabled:opacity-60"
+                                    >
                                         첫 교재 업로드하기
                                     </Button>
                                 </div>
@@ -343,9 +295,6 @@ export default function DashboardPageClient() {
                                                 </p>
                                             )}
                                             <div className="flex flex-wrap gap-1 justify-center">
-                                                <span className="px-2 py-0.5 text-xs bg-lango/50 text-muted-ink rounded border border-lango">
-                                                    {material.fileType.toUpperCase()}
-                                                </span>
                                                 {material.cefrLevel && (
                                                     <span className="px-2 py-0.5 text-xs bg-highlight text-primary rounded border border-primary/20">
                                                         {material.cefrLevel}
@@ -435,73 +384,6 @@ export default function DashboardPageClient() {
                     </div>
                 </main>
             </div>
-
-            {/* Upload Modal */}
-            {showUploadModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-surface rounded-lg border border-lango p-6 max-w-md w-full">
-                        <h2 className="text-2xl font-bold text-ink mb-4">교재 업로드</h2>
-                        <form onSubmit={handleUpload} className="space-y-4">
-                            <div>
-                                <label htmlFor="title" className="block text-sm font-medium text-ink mb-2">
-                                    제목 *
-                                </label>
-                                <input
-                                    type="text"
-                                    id="title"
-                                    required
-                                    value={uploadForm.title}
-                                    onChange={(e) => setUploadForm({ ...uploadForm, title: e.target.value })}
-                                    className="w-full px-4 py-2 border border-lango rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="author" className="block text-sm font-medium text-ink mb-2">
-                                    저자 (선택)
-                                </label>
-                                <input
-                                    type="text"
-                                    id="author"
-                                    value={uploadForm.author}
-                                    onChange={(e) => setUploadForm({ ...uploadForm, author: e.target.value })}
-                                    className="w-full px-4 py-2 border border-lango rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="file" className="block text-sm font-medium text-ink mb-2">
-                                    파일 (TXT만 지원) *
-                                </label>
-                                <input
-                                    type="file"
-                                    id="file"
-                                    accept=".txt"
-                                    required
-                                    onChange={(e) => setUploadForm({ ...uploadForm, file: e.target.files?.[0] || null })}
-                                    className="w-full px-4 py-2 border border-lango rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                                />
-                                <p className="text-xs text-muted-ink mt-1">최대 10MB, TXT 파일만 업로드 가능합니다</p>
-                            </div>
-                            <div className="flex gap-2 pt-2">
-                                <Button
-                                    type="button"
-                                    onClick={() => setShowUploadModal(false)}
-                                    variant="outline"
-                                    className="flex-1"
-                                >
-                                    취소
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={uploading || !uploadForm.file}
-                                    className="flex-1 bg-primary hover:bg-primary/90 text-white"
-                                >
-                                    {uploading ? "업로드 중..." : "업로드"}
-                                </Button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
