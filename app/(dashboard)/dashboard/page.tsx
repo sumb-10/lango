@@ -259,125 +259,116 @@ export default function DashboardPageClient() {
                         </div>
 
                         {/* Materials Grid */}
-                        <div>
+                            <div>
                             <h2 className="text-xl font-semibold text-ink mb-4">내 교재</h2>
 
                             {materials && materials.length === 0 && (
                                 <div className="text-center py-12 bg-surface rounded-lg border border-lango">
-                                    <p className="text-muted-ink">아직 업로드된 교재가 없습니다.</p>
-                                    <Button
+                                <p className="text-muted-ink">아직 업로드된 교재가 없습니다.</p>
+                                <Button
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={uploading}
                                     className="mt-4 bg-primary hover:bg-primary/90 disabled:opacity-60"
-                                    >
-                                        첫 교재 업로드하기
-                                    </Button>
+                                >
+                                    첫 교재 업로드하기
+                                </Button>
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {/* 목록형 리스트 */}
+                            <div className="space-y-0">
                                 {materials?.map((material) => (
-                                    <div
-                                        key={material.id}
-                                        className="group relative overflow-hidden bg-surface border border-lango hover:border-primary/60 hover:shadow-md transition-all cursor-pointer aspect-square rounded-lg"
-                                    >
-                                        {/* Content */}
-                                        <div className="absolute inset-0 p-4 flex flex-col items-center justify-center">
-                                            <div className="w-16 h-16 rounded-lg bg-highlight flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
-                                                <FileText className="h-8 w-8 text-primary" />
-                                            </div>
-                                            <p className="text-ink text-center mb-1 px-2 line-clamp-2 text-sm font-semibold">
-                                                {material.title}
-                                            </p>
-                                            {material.author && (
-                                                <p className="text-muted-ink text-center mb-2 text-xs">
-                                                    {material.author}
-                                                </p>
-                                            )}
-                                            <div className="flex flex-wrap gap-1 justify-center">
-                                                {material.cefrLevel && (
-                                                    <span className="px-2 py-0.5 text-xs bg-highlight text-primary rounded border border-primary/20">
-                                                        {material.cefrLevel}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Status Badge */}
-                                        <div className="absolute top-2 left-2">
-                                            <span className="px-2 py-0.5 text-xs bg-white/80 text-muted-ink border border-lango rounded">
-                                                {material.status === "uploaded" && "대기중"}
-                                                {material.status === "processing" && "처리중"}
-                                                {material.status === "ready" && "완료"}
-                                            </span>
-                                        </div>
-
-                                        {/* Context Menu (⋮) */}
-                                        <div className="absolute top-2 right-2">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => e.stopPropagation()} // 카드 hover/클릭 막기
-                                                className="p-1 rounded-full bg-white/80 hover:bg-white shadow-sm"
-                                            >
-                                                <MoreVertical className="h-4 w-4 text-muted-ink" />
-                                            </button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-40">
-                                            <DropdownMenuItem
-                                                onClick={(e) => {
-                                                e.stopPropagation();
-                                                // TODO: 이름 변경 다이얼로그 연결
-                                                toast.info("이름 변경 기능은 곧 추가될 예정입니다.");
-                                                }}
-                                            >
-                                                이름 변경
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                onClick={(e) => {
-                                                e.stopPropagation();
-                                                // TODO: '폴더로 이동' 다이얼로그나 /materials로 라우팅
-                                                toast.info("폴더로 이동 기능은 폴더 페이지와 연동 예정입니다.");
-                                                }}
-                                            >
-                                                이동
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                className="text-red-600"
-                                                onClick={(e) => {
-                                                e.stopPropagation();
-                                                // TODO: 실제 삭제 API 연결
-                                                toast.info("삭제 기능은 추후 안전장치와 함께 연결할 예정입니다.");
-                                                }}
-                                            >
-                                                삭제
-                                            </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                        </div>
-
-
-                                        {/* Action Buttons Overlay */}
-                                        <div className="absolute inset-0 bg-ink/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-4">
-                                            {material.status === "uploaded" && (
-                                                <Button
-                                                    onClick={() => handleProcess(material.id)}
-                                                    className="bg-primary text-white hover:bg-primary/90"
-                                                    disabled={processingIds.includes(material.id)}
-                                                >
-                                                    {processingIds.includes(material.id) ? "처리중..." : "처리 시작"}
-                                                </Button>
-                                            )}
-                                            {material.status === "ready" && (
-                                                <Link href={`/learning/${material.id}`}>
-                                                    <Button className="bg-primary text-white hover:bg-primary/90">
-                                                        학습하기
-                                                    </Button>
-                                                </Link>
-                                            )}
-                                        </div>
+                                <div
+                                    key={material.id}
+                                    className="group flex items-center justify-between border border-lango bg-surface px-4 py-3 hover:border-primary/50 hover:bg-white/70 transition-all"
+                                >
+                                    {/* 왼쪽: 아이콘 + 제목 + 저자 */}
+                                    <div className="flex items-center gap-4 min-w-0">
+                                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-highlight group-hover:bg-primary/15 transition-colors">
+                                        {/* 나중에 폴더 타입 생기면 여기서 아이콘 분기 */}
+                                        <FileText className="h-6 w-6 text-primary" />
                                     </div>
+                                    {/* 수준(CEFR) */}
+                                    {material.cefrLevel && (
+                                        <span className="px-2 py-0.5 text-xs rounded-full bg-highlight text-primary border border-primary/20">
+                                        {material.cefrLevel}
+                                        </span>
+                                    )}
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-ink">
+                                        {material.title}
+                                        </p>
+                                        <p className="mt-0.5 truncate text-xs text-muted-ink">
+                                        {material.author || "user"}
+                                        </p>
+                                    </div>
+                                    </div>
+
+                                    {/* 오른쪽: 버튼 + 햄버거 */}
+                                    <div className="flex items-center gap-3 flex-shrink-0">
+                                    {/* 액션 버튼 */}
+                                    {material.status === "uploaded" && (
+                                        <Button
+                                        size="sm"
+                                        onClick={() => handleProcess(material.id)}
+                                        className="bg-primary text-white hover:bg-primary/90"
+                                        disabled={processingIds.includes(material.id)}
+                                        >
+                                        {processingIds.includes(material.id) ? "처리중..." : "처리 시작"}
+                                        </Button>
+                                    )}
+                                    {material.status === "ready" && (
+                                        <Link href={`/learning/${material.id}`}>
+                                        <Button
+                                            size="sm"
+                                            className="bg-primary text-white hover:bg-primary/90"
+                                        >
+                                            학습하기
+                                        </Button>
+                                        </Link>
+                                    )}
+
+                                    {/* 햄버거 메뉴 */}
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="p-1 rounded-full bg-white/80 hover:bg-white shadow-sm"
+                                        >
+                                            <MoreVertical className="h-4 w-4 text-muted-ink" />
+                                        </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-40">
+                                        <DropdownMenuItem
+                                            onClick={(e) => {
+                                            e.stopPropagation();
+                                            toast.info("이름 변경 기능은 곧 추가될 예정입니다.");
+                                            }}
+                                        >
+                                            이름 변경
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={(e) => {
+                                            e.stopPropagation();
+                                            toast.info("폴더로 이동 기능은 폴더 페이지와 연동 예정입니다.");
+                                            }}
+                                        >
+                                            이동
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            className="text-red-600"
+                                            onClick={(e) => {
+                                            e.stopPropagation();
+                                            toast.info("삭제 기능은 추후 안전장치와 함께 연결할 예정입니다.");
+                                            }}
+                                        >
+                                            삭제
+                                        </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    </div>
+                                </div>
                                 ))}
                             </div>
                         </div>
