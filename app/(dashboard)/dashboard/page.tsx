@@ -125,10 +125,15 @@ export default function DashboardPageClient() {
     setUploading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("title", title);
-      formData.append("author", author);
-      formData.append("file", file);
+        const formData = new FormData();
+        formData.append("title", title);
+        formData.append("author", author);
+        formData.append("file", file);
+    // 🔴 여기 추가: 현재 폴더 id를 함께 전송
+        if (currentFolderId !== null) {
+        formData.append("folderId", String(currentFolderId));
+        }
+        // 루트면 안 보내도 되고, 보내고 싶다면 "" 대신 null 처리해도 됨
 
       const res = await fetch("/api/materials/upload", {
         method: "POST",
@@ -221,11 +226,40 @@ export default function DashboardPageClient() {
     }
   };
 
-  const handleCreateFolderClick = () => {
-    // 나중에 여기서 폴더 생성 다이얼로그 or API 연결
-    toast.info("폴더 생성은 곧 /materials 페이지와 함께 연결할 예정입니다.");
-    // router.push("/materials");
-  };
+    const handleCreateFolderClick = async () => {
+    // 간단하게 window.prompt로 폴더 이름 입력 받기
+    const name = window.prompt("새 폴더 이름을 입력하세요.");
+    if (!name || !name.trim()) {
+        return; // 취소 또는 공백이면 아무 것도 안 함
+    }
+
+    try {
+        const res = await fetch("/api/folders", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            name: name.trim(),
+            parentId: currentFolderId, // 🔴 현재 보고 있는 폴더 id → parent_id로 사용
+        }),
+        });
+
+        if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        throw new Error(errBody?.error || "폴더 생성에 실패했습니다.");
+        }
+
+        toast.success("새 폴더가 생성되었습니다.");
+
+        // 현재 폴더 내용 다시 로드
+        await fetchFolderContents(currentFolderId);
+    } catch (err: any) {
+        console.error(err);
+        toast.error(err?.message || "폴더 생성 중 오류가 발생했습니다.");
+    }
+    };
 
   const handleFolderClick = (folderId: number) => {
     fetchFolderContents(folderId);
