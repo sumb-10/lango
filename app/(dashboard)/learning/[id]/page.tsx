@@ -90,12 +90,12 @@ export default async function LearningPage({ params }: Props) {
     <div className="min-h-screen flex flex-col bg-background">
       <Header variant="learning" />
 
-      <main className="flex-1 px-4 md:px-8 py-6 md:py-8">
+      <main className="flex-1 flex">
         <div className="max-w-[1440px] mx-auto h-full">
           <LearningView
             material={material}
             worksheet={worksheet}
-            chunks={chunks || []}
+            //chunks={chunks || []}
             lessonJson={lessonJson} // 👈 여기서 클라이언트로 넘김
           />
         </div>
