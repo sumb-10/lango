@@ -10,7 +10,7 @@ export type SentenceRecord = {
   text: string;
   translate: string;
   structure: string;
-  key_point: string;
+  structure_translated: string;
 };
 
 // 호출 인자 타입
@@ -45,7 +45,7 @@ export function parseTextToSentences(textContent: string): SentenceRecord[] {
         text: sentence,
         translate: '',
         structure: '',
-        key_point: '',
+        structure_translated: '',
       });
     });
   });
@@ -60,19 +60,31 @@ const SENTENCE_ANNOTATION_SYSTEM_PROMPT = `
 입력으로 문장 배열을 받습니다. 각 항목은 다음 필드를 가집니다:
 - paragraph: 문단 인덱스 (숫자)
 - sentence_id: 문장 전역 ID (숫자, 0부터 시작)
-- text: 원문 문장 (언어는 영어/프랑스어/일본어/기타일 수 있음)
+- text: 원문 문장 (언어는 영어/프랑스어/일본어/그 외일 수 있음)
 
 당신의 작업:
 각 문장에 대해 다음 필드를 채워서 동일한 배열 구조로 반환하세요.
 
 - translate: 문장을 자연스러운 한국어로 번역한 문장 (한 문장)
-- structure: 문장 구조를 "S(...)+ V(...)+ O(...)" 형태로 요약한 문법 구조 설명 (영문/약어 혼합 가능)
-- key_point: 이 문장에서 학습할 만한 핵심 문법/표현 포인트를 한국어로 정리한 짧은 설명
+- structure: 원문 문장을 문장 구성 요소별로 '/'로 구분한 문자열
+- structure_translated: structure 필드의 각 구성 요소를 한국어로 풀이한 문자열
+
+예시(간단한 문장) : 
+-원문(Original Sentence) : Technological progress often solves old problems only to introduce new and unexpected ones.
+-번역(translate) : 기술의 진보는 종종 오래된 문제를 해결하지만 새로운 예상치 못한 문제를 야기하기도 합니다.
+-구조(structure) : Technological progress / often solves / old problems / only to introduce / new and unexpected ones
+-구조 풀이(structure_translated) : 기술 발전은 / 종종 해결한다 / 오래된 문제들을 / 그러나 결과적으로 만들어낸다 / 새롭고 예상치 못한 문제들을 
+
+예시(복잡한 문장) :
+-원문(Original Sentence) : As societies become increasingly dependent on algorithmic decision-making, individuals often find themselves navigating choices whose underlying logic is opaque, even to the experts who designed the systems.
+-번역(translate) : 사회가 알고리즘 기반 의사결정에 점점 더 의존하게 될수록, 사람들은 종종 그 시스템을 설계한 전문가들에게조차 불투명한 논리에 기반한 선택지를 헤쳐 나가야 하는 상황에 놓인다.
+-구조(structure) : As societies become increasingly dependent on algorithmic decision-making, / individuals often find themselves / navigating choices / whose underlying logic is opaque, / even to the experts who designed the systems.
+-구조 풀이(structure_translated) : 사회가 알고리즘 의사결정에 점점 더 의존하게 됨에 따라, / 개인들은 종종 자신들이 처한 상황을 알게 된다 / 선택지를 헤쳐 나가야 하는 / 그 기저에 있는 논리가 불투명한, / 심지어 그 시스템을 설계한 전문가들에게조차도.
 
 중요:
 - paragraph, sentence_id, text 값은 그대로 유지하세요.
 - 반드시 JSON 배열만 출력하세요. 추가 설명, 불릿, 코드블록, 자연어 코멘트 등을 붙이지 마세요.
-- 출력 배열의 각 요소는 { "paragraph", "sentence_id", "text", "translate", "structure", "key_point" } 형식이어야 합니다.
+- 출력 배열의 각 요소는 { "paragraph", "sentence_id", "text", "translate", "structure", "structure_translated" } 형식이어야 합니다.
 `;
 
 // 배치 크기 (한 번에 몇 문장씩 LLM에 보낼지)
@@ -128,7 +140,7 @@ export async function enrichSentencesWithLLM(
           text: s.text,
           translate: enriched.translate ?? '',
           structure: enriched.structure ?? '',
-          key_point: enriched.key_point ?? enriched.key_points ?? '',
+          structure_translated: enriched.key_point ?? enriched.structure_translated ?? '',
         });
       }
     } catch (err) {

@@ -1,14 +1,12 @@
-// app/(dashboard)/chunkbuild/writing/page.tsx
+// app/(dashboard)/chunkbuild/structure/page.tsx
 
 'use client';
 
 import { useState } from 'react';
 import type { SentenceRecord } from '@/lib/processUserMaterial';
-import type { WritingChunk, WritingPrompt } from '@/types/lesson';
+import type { StructureChunk, StructureItem } from '@/types/lesson';
 
-type CEFRLevel = 'B2' | 'C1' | 'C2';
-
-function WritingChunkView({ chunk }: { chunk: WritingChunk }) {
+function StructureChunkView({ chunk }: { chunk: StructureChunk }) {
   return (
     <section
       style={{
@@ -23,63 +21,62 @@ function WritingChunkView({ chunk }: { chunk: WritingChunk }) {
         style={{
           fontSize: 18,
           fontWeight: 700,
-          marginBottom: 8,
+          marginBottom: 12,
         }}
       >
         {chunk.title}
       </h2>
 
-      {chunk.data.prompts.map((p: WritingPrompt, idx) => (
+      {chunk.data.items.map((item: StructureItem) => (
         <article
-          key={p.id}
+          key={item.sentence_id}
           style={{
             padding: '12px 0',
             borderTop: '1px solid #e5e7eb',
           }}
         >
-          <h3
+          <div
             style={{
-              fontSize: 15,
-              fontWeight: 700,
-              marginBottom: 6,
+              fontSize: 12,
+              color: '#9ca3af',
+              marginBottom: 4,
             }}
           >
-            {p.title || `문제 ${idx + 1}`}
-          </h3>
-
-          <pre
-            style={{
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              fontSize: 13,
-              lineHeight: 1.6,
-              marginBottom: 6,
-              fontFamily:
-                'system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-            }}
-          >
-            {p.prompt}
-          </pre>
-
-          {p.guidance_ko && (
-            <p
-              style={{
-                fontSize: 12,
-                color: '#4b5563',
-                marginBottom: 4,
-              }}
-            >
-              {p.guidance_ko}
-            </p>
-          )}
+            P{item.paragraph} · S{item.sentence_id}
+          </div>
 
           <p
             style={{
-              fontSize: 11,
-              color: '#9ca3af',
+              marginBottom: 6,
+              lineHeight: 1.6,
+              fontSize: 14,
+              fontWeight: 500,
             }}
           >
-            최소 단락 수: {p.min_paragraphs} · 최소 문장 수: {p.min_sentences}
+            {item.text}
+          </p>
+
+          <p
+            style={{
+              marginBottom: 4,
+              lineHeight: 1.5,
+              fontSize: 13,
+              color: '#111827',
+            }}
+          >
+            <strong style={{ fontSize: 12, color: '#6b7280' }}>Structure:</strong>{' '}
+            {item.structure || <em style={{ color: '#9ca3af' }}>구조 정보 없음</em>}
+          </p>
+
+          <p
+            style={{
+              lineHeight: 1.5,
+              fontSize: 13,
+              color: '#374151',
+            }}
+          >
+            <strong style={{ fontSize: 12, color: '#6b7280' }}>Key point:</strong>{' '}
+            {item.structure_translated || <em style={{ color: '#9ca3af' }}>핵심 포인트 없음</em>}
           </p>
         </article>
       ))}
@@ -87,12 +84,10 @@ function WritingChunkView({ chunk }: { chunk: WritingChunk }) {
   );
 }
 
-export default function WritingChunkBuildPage() {
+export default function StructureChunkBuildPage() {
   const [rawInput, setRawInput] = useState('');
-  const [level, setLevel] = useState<CEFRLevel>('C1');
-  const [numPrompts, setNumPrompts] = useState<number>(2);
-  const [chunk, setChunk] = useState<WritingChunk | null>(null);
-  const [rawResult, setRawResult] = useState<string>('');
+  const [rawResult, setRawResult] = useState<string>(''); // 디버그용 JSON
+  const [chunk, setChunk] = useState<StructureChunk | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -130,28 +125,22 @@ export default function WritingChunkBuildPage() {
       }
 
       setProgress(
-        `총 ${sentences.length}개의 문장을 기반으로 WritingChunk를 생성합니다...`,
+        `총 ${sentences.length}개의 문장을 기반으로 StructureChunk를 생성합니다...`,
       );
 
-      const res = await fetch('/api/chunkbuild/writingChunk', {
+      const res = await fetch('/api/chunkbuild/structureChunk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sentences,
-          level,
-          numPrompts,
-        }),
+        body: JSON.stringify({ sentences }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(
-          data.error || 'WritingChunk API 호출 중 오류가 발생했습니다.',
-        );
+        throw new Error(data.error || 'StructureChunk API 호출 중 오류가 발생했습니다.');
       }
 
       const data = await res.json();
-      const receivedChunk: WritingChunk | undefined = data.chunk;
+      const receivedChunk: StructureChunk | undefined = data.chunk;
 
       if (!receivedChunk) {
         throw new Error('응답에서 chunk 데이터를 찾을 수 없습니다.');
@@ -159,7 +148,7 @@ export default function WritingChunkBuildPage() {
 
       setChunk(receivedChunk);
       setRawResult(JSON.stringify(receivedChunk, null, 2));
-      setProgress('WritingChunk 생성 완료.');
+      setProgress('StructureChunk 생성 완료.');
     } catch (err: any) {
       console.error(err);
       setError(err.message || '알 수 없는 오류가 발생했습니다.');
@@ -179,61 +168,13 @@ export default function WritingChunkBuildPage() {
       }}
     >
       <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>
-        SentenceRecord[] → WritingChunk(긴 작문 문제) 변환 테스트
+        SentenceRecord[] → StructureChunk 변환 테스트
       </h1>
       <p style={{ color: '#555', marginBottom: 24 }}>
         1차 파이프라인(processUserMaterial)에서 생성된 JSON 배열
         (SentenceRecord[])을 아래에 붙여넣은 뒤,&nbsp;
-        <b>WritingChunk</b> 생성 결과를 확인할 수 있는 개발용 페이지입니다.
-        <br />
-        LLM 입력에는 영어 원문(text)만 사용합니다.
+        <b>StructureChunk</b> 생성 결과를 확인할 수 있는 개발용 페이지입니다.
       </p>
-
-      <section
-        style={{
-          marginBottom: 16,
-          display: 'flex',
-          gap: 12,
-          flexWrap: 'wrap',
-          alignItems: 'center',
-        }}
-      >
-        <label style={{ fontSize: 13 }}>
-          Level:&nbsp;
-          <select
-            value={level}
-            onChange={(e) => setLevel(e.target.value as CEFRLevel)}
-            style={{
-              padding: '4px 8px',
-              borderRadius: 6,
-              border: '1px solid #d1d5db',
-              fontSize: 13,
-            }}
-          >
-            <option value="B2">B2</option>
-            <option value="C1">C1</option>
-            <option value="C2">C2</option>
-          </select>
-        </label>
-
-        <label style={{ fontSize: 13 }}>
-          # of prompts:&nbsp;
-          <input
-            type="number"
-            min={1}
-            max={3}
-            value={numPrompts}
-            onChange={(e) => setNumPrompts(Number(e.target.value) || 1)}
-            style={{
-              width: 70,
-              padding: '4px 6px',
-              borderRadius: 6,
-              border: '1px solid #d1d5db',
-              fontSize: 13,
-            }}
-          />
-        </label>
-      </section>
 
       <label
         htmlFor="chunk-input"
@@ -245,7 +186,7 @@ export default function WritingChunkBuildPage() {
         id="chunk-input"
         value={rawInput}
         onChange={(e) => setRawInput(e.target.value)}
-        placeholder={`예) [\n  {\n    "paragraph": 0,\n    "sentence_id": 0,\n    "text": "...",\n    "translate": "...",\n    "structure": "...",\n    "structure_translated": "..." \n  },\n  ...\n]`}
+        placeholder={`예) [\n  {\n    "paragraph": 0,\n    "sentence_id": 0,\n    "text": "...",\n    "translate": "...",\n    "structure": "S(...) + V(...) + O(...)",\n    "structure_translated": "..." \n  },\n  ...\n]`}
         rows={16}
         style={{
           width: '100%',
@@ -283,7 +224,7 @@ export default function WritingChunkBuildPage() {
             fontSize: 14,
           }}
         >
-          {loading ? '생성 중…' : 'WritingChunk 생성하기'}
+          {loading ? '생성 중…' : 'StructureChunk 생성하기'}
         </button>
         {error && (
           <span style={{ color: 'crimson', fontSize: 13 }}>{error}</span>
@@ -296,7 +237,7 @@ export default function WritingChunkBuildPage() {
       {/* HTML 미리보기 */}
       <section style={{ marginTop: 32 }}>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>
-          결과 (WritingChunk 미리보기)
+          결과 (StructureChunk 미리보기)
         </h2>
         {!chunk && !loading && !error && (
           <p style={{ color: '#777', fontSize: 14 }}>
@@ -305,10 +246,10 @@ export default function WritingChunkBuildPage() {
         )}
         {loading && (
           <p style={{ color: '#555', fontSize: 14 }}>
-            서버에서 WritingChunk를 생성 중입니다…
+            서버에서 StructureChunk를 생성 중입니다…
           </p>
         )}
-        {chunk && <WritingChunkView chunk={chunk} />}
+        {chunk && <StructureChunkView chunk={chunk} />}
       </section>
 
       {/* 디버그용 Raw JSON */}

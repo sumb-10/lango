@@ -40,7 +40,7 @@ export interface StructureItem {
   sentence_id: number;
   text: string;
   structure: string;
-  key_point: string;
+  structure_translated: string;
 }
 
 /**

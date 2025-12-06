@@ -110,7 +110,7 @@ export default function BackgroundChunkBuildPage() {
         text: item.text,
         translate: item.translate ?? '',
         structure: item.structure ?? '',
-        key_point: item.key_point ?? '',
+        structure_translated: item.structure_translated ?? '',
       }));
 
       if (sentences.length === 0) {
@@ -233,7 +233,7 @@ export default function BackgroundChunkBuildPage() {
         id="chunk-input"
         value={rawInput}
         onChange={(e) => setRawInput(e.target.value)}
-        placeholder={`예) [\n  {\n    "paragraph": 0,\n    "sentence_id": 0,\n    "text": "...",\n    "translate": "...",\n    "structure": "...",\n    "key_point": "..." \n  },\n  ...\n]`}
+        placeholder={`예) [\n  {\n    "paragraph": 0,\n    "sentence_id": 0,\n    "text": "...",\n    "translate": "...",\n    "structure": "...",\n    "structure_translated": "..." \n  },\n  ...\n]`}
         rows={16}
         style={{
           width: '100%',

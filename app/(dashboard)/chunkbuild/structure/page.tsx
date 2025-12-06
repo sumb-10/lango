@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import type { SentenceRecord } from '@/lib/processUserMaterial';
-import type { StructureChunk, StructureItem } from '@/types/lesson';
+import type { StructureChunk } from '@/types/lesson';
 
 function StructureChunkView({ chunk }: { chunk: StructureChunk }) {
   return (
@@ -21,73 +21,94 @@ function StructureChunkView({ chunk }: { chunk: StructureChunk }) {
         style={{
           fontSize: 18,
           fontWeight: 700,
-          marginBottom: 12,
+          marginBottom: 8,
         }}
       >
         {chunk.title}
       </h2>
 
-      {chunk.data.items.map((item: StructureItem) => (
-        <article
-          key={item.sentence_id}
-          style={{
-            padding: '12px 0',
-            borderTop: '1px solid #e5e7eb',
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              color: '#9ca3af',
-              marginBottom: 4,
-            }}
-          >
-            P{item.paragraph} · S{item.sentence_id}
-          </div>
+      <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
+        각 문장의 구조와 핵심 표현을 정리한 영역입니다.
+      </p>
 
-          <p
+      <ul
+        style={{
+          listStyle: 'none',
+          padding: 0,
+          margin: 0,
+        }}
+      >
+        {chunk.data.items.map((item) => (
+          <li
+            key={`${item.paragraph}-${item.sentence_id}`}
             style={{
-              marginBottom: 6,
-              lineHeight: 1.6,
-              fontSize: 14,
-              fontWeight: 500,
+              padding: '10px 0',
+              borderTop: '1px solid #e5e7eb',
             }}
           >
-            {item.text}
-          </p>
-
-          <p
-            style={{
-              marginBottom: 4,
-              lineHeight: 1.5,
-              fontSize: 13,
-              color: '#111827',
-            }}
-          >
-            <strong style={{ fontSize: 12, color: '#6b7280' }}>Structure:</strong>{' '}
-            {item.structure || <em style={{ color: '#9ca3af' }}>구조 정보 없음</em>}
-          </p>
-
-          <p
-            style={{
-              lineHeight: 1.5,
-              fontSize: 13,
-              color: '#374151',
-            }}
-          >
-            <strong style={{ fontSize: 12, color: '#6b7280' }}>Key point:</strong>{' '}
-            {item.key_point || <em style={{ color: '#9ca3af' }}>핵심 포인트 없음</em>}
-          </p>
-        </article>
-      ))}
+            <div
+              style={{
+                fontSize: 12,
+                color: '#9ca3af',
+                marginBottom: 4,
+              }}
+            >
+              P{item.paragraph} · S{item.sentence_id}
+            </div>
+            <p
+              style={{
+                fontSize: 14,
+                marginBottom: 4,
+              }}
+            >
+              {item.text}
+            </p>
+            <p
+              style={{
+                fontSize: 13,
+                color: '#111827',
+                marginBottom: 4,
+              }}
+            >
+              <strong>Structure: </strong>
+              {item.structure}
+            </p>
+            <p
+              style={{
+                fontSize: 13,
+                color: '#4b5563',
+              }}
+            >
+              <strong>Key Point: </strong>
+              {item.structure_translated}
+            </p>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
 
+function parseSentenceRecords(raw: string): SentenceRecord[] {
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed)) {
+    throw new Error('최상위 구조가 배열이 아닙니다. SentenceRecord[] 형식이어야 합니다.');
+  }
+
+  return parsed.map((item: any) => ({
+    paragraph: item.paragraph,
+    sentence_id: item.sentence_id,
+    text: item.text,
+    translate: item.translate ?? '',
+    structure: item.structure ?? '',
+    structure_translated: item.structure_translated ?? '',
+  }));
+}
+
 export default function StructureChunkBuildPage() {
   const [rawInput, setRawInput] = useState('');
-  const [rawResult, setRawResult] = useState<string>(''); // 디버그용 JSON
   const [chunk, setChunk] = useState<StructureChunk | null>(null);
+  const [rawResult, setRawResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -105,20 +126,7 @@ export default function StructureChunkBuildPage() {
     setProgress('입력 JSON 파싱 중...');
 
     try {
-      const parsed = JSON.parse(rawInput);
-
-      if (!Array.isArray(parsed)) {
-        throw new Error('최상위 구조가 배열이 아닙니다. SentenceRecord[] 형식이어야 합니다.');
-      }
-
-      const sentences: SentenceRecord[] = parsed.map((item: any) => ({
-        paragraph: item.paragraph,
-        sentence_id: item.sentence_id,
-        text: item.text,
-        translate: item.translate ?? '',
-        structure: item.structure ?? '',
-        key_point: item.key_point ?? '',
-      }));
+      const sentences = parseSentenceRecords(rawInput);
 
       if (sentences.length === 0) {
         throw new Error('문장 배열이 비어 있습니다.');
@@ -136,7 +144,9 @@ export default function StructureChunkBuildPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'StructureChunk API 호출 중 오류가 발생했습니다.');
+        throw new Error(
+          data.error || 'StructureChunk API 호출 중 오류가 발생했습니다.',
+        );
       }
 
       const data = await res.json();
@@ -186,7 +196,7 @@ export default function StructureChunkBuildPage() {
         id="chunk-input"
         value={rawInput}
         onChange={(e) => setRawInput(e.target.value)}
-        placeholder={`예) [\n  {\n    "paragraph": 0,\n    "sentence_id": 0,\n    "text": "...",\n    "translate": "...",\n    "structure": "S(...) + V(...) + O(...)",\n    "key_point": "..." \n  },\n  ...\n]`}
+        placeholder={`예) [\n  {\n    "paragraph": 0,\n    "sentence_id": 0,\n    "text": "...",\n    "translate": "...",\n    "structure": "...",\n    "structure_translated": "..." \n  },\n  ...\n]`}
         rows={16}
         style={{
           width: '100%',

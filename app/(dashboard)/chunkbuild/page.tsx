@@ -107,7 +107,7 @@ export default function ChunkBuildPage() {
         text: item.text,
         translate: item.translate ?? '',
         structure: item.structure ?? '',
-        key_point: item.key_point ?? '',
+        structure_translated: item.structure_translated ?? '',
       }));
 
       if (sentences.length === 0) {
