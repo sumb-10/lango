@@ -4,18 +4,17 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound, redirect } from "next/navigation";
 import LearningView from "@/components/LearningView";
 import { Header } from "@/components/Header";
-import type { LessonJsonV1 } from "@/types/store_material";
+import type { LessonJson } from "@/types/lesson";
 
 interface PageParams {
   id: string;
 }
 
 interface Props {
-  params: Promise<PageParams>; // 네 스타일 유지
+  params: Promise<PageParams>;
 }
 
 export default async function LearningPage({ params }: Props) {
-  // ✅ Next.js 15 스타일: params가 Promise라고 가정
   const { id } = await params;
 
   const supabase = await createClient();
@@ -24,80 +23,47 @@ export default async function LearningPage({ params }: Props) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    // 그냥 null 리턴보단 redirect가 좀 더 명확
     redirect("/");
   }
 
-  // 1) 교재 조회
   const {
     data: material,
     error: materialError,
   } = await supabase
     .from("materials")
     .select("*")
-    .eq("id", Number(id)) // id가 SERIAL이면 number로
+    .eq("id", Number(id))
     .eq("user_id", user.id)
     .single();
 
-  if (!material) {
+  if (materialError || !material) {
     notFound();
   }
 
-  // 2) 학습지 조회
-  const {
-    data: worksheet,
-    error: worksheetError,
-  } = await supabase
-    .from("worksheets")
-    .select("*")
-    .eq("material_id", material.id)
-    .eq("user_id", user.id)
-    .single();
+  let lessonJson: LessonJson | null = null;
 
-  // 3) 청크 조회 (스토어 lesson-json이면 chunks가 없을 수도 있음)
-  const {
-    data: chunks = [],
-    error: chunksError,
-  } = await supabase
-    .from("chunks")
-    .select("*")
-    .eq("material_id", material.id)
-    .order("chunk_index", { ascending: true })
-
-  // 4) lesson-json-v1 인 경우: Storage에서 JSON 다운 + 파싱
-  let lessonJson: LessonJsonV1 | null = null;
-
-  if (material.source === "store" && material.file_type === "lesson-json-v1") {
-
-    // ✅ 버킷 이름 확인
-    const { data: file, error: downloadError } = await supabase.storage
-      .from("store_materials") // store_materials 버킷에서 다운
-      .download(material.file_url);
-
-
-    if (file && !downloadError) {
-      const text = await file.text();
-
-      try {
-        lessonJson = JSON.parse(text) as LessonJsonV1;
-      } catch (e) {
-        console.error("[LearningPage] JSON parse error:", e);
+  if (material.file_type === "lesson_json" && material.file_url) {
+    try {
+      const res = await fetch(material.file_url);
+      if (!res.ok) {
+        throw new Error(`lesson_json fetch 실패: status ${res.status}`);
       }
+      const json = await res.json();
+      lessonJson = json as LessonJson;
+    } catch (e) {
+      console.error("[LearningPage] lesson_json parse error:", e);
     }
   }
 
   return (
+    // 🔹 바깥을 그냥 전체 배경 + 수직 플렉스로만 유지
     <div className="min-h-screen flex flex-col bg-background">
-      <Header variant="learning" />
+      {/*<Header variant="learning" />*/}
 
+      {/* 🔹 max-w / mx-auto 제거하고 전체 폭 사용  */}
       <main className="flex-1 flex">
-        <div className="max-w-[1440px] mx-auto h-full">
-          <LearningView
-            material={material}
-            worksheet={worksheet}
-            //chunks={chunks || []}
-            lessonJson={lessonJson} // 👈 여기서 클라이언트로 넘김
-          />
+        <div className="flex-1 h-full">
+          <LearningView material={material} lessonJson={lessonJson} />
         </div>
       </main>
     </div>

@@ -1,7 +1,5 @@
 // app/api/materials/upload/route.ts
 
-export const runtime = 'nodejs'; // ✅ pdf-parse 위해 Node 런타임 강제
-
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { processUserMaterial } from '@/lib/processUserMaterial';
@@ -10,36 +8,16 @@ import {
   LessonChunkConfig,
 } from '@/lib/lesson/buildLessonForMaterial';
 
-import { extractText, getDocumentProxy } from 'unpdf';
-
 type CEFRLevel = 'B2' | 'C1' | 'C2';
 const DEFAULT_LEVEL: CEFRLevel = 'C1';
 
 // ---- 업로드 정책 상수 ----
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
-// ✅ txt + pdf 둘 다 허용
-const ALLOWED_EXTENSIONS = ['.txt', '.pdf'];
+const ALLOWED_EXTENSION = '.txt';
 
 // 파일 확장자 체크
 function hasAllowedExtension(fileName: string) {
-  const lower = fileName.toLowerCase();
-  return ALLOWED_EXTENSIONS.some((ext) => lower.endsWith(ext));
-}
-
-// ✅ 파일 타입 헬퍼
-function isTxtFile(file: File) {
-  return (
-    file.type === 'text/plain' ||
-    file.name.toLowerCase().endsWith('.txt')
-  );
-}
-
-function isPdfFile(file: File) {
-  return (
-    file.type === 'application/pdf' ||
-    file.name.toLowerCase().endsWith('.pdf')
-  );
+  return fileName.toLowerCase().endsWith(ALLOWED_EXTENSION);
 }
 
 // 파일 유효성 검증 (문제 있으면 Error 던짐)
@@ -49,44 +27,13 @@ function validateFileOrThrow(file: File | null) {
   }
 
   if (!hasAllowedExtension(file.name)) {
-    // ✅ 에러 메시지도 수정
-    throw new Error('현재 TXT, PDF 파일만 지원합니다.');
+    throw new Error('현재 TXT 파일만 지원합니다. PDF와 EPUB은 추후 지원 예정입니다.');
   }
 
   if (file.size > MAX_FILE_SIZE) {
     throw new Error('파일 크기는 10MB를 초과할 수 없습니다');
   }
 }
-
-// ✅ PDF/TXT → 텍스트 공통 추출 함수 (unpdf 버전)
-async function extractPlainText(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const uint8 = new Uint8Array(arrayBuffer);
-
-  // TXT인 경우
-  if (isTxtFile(file)) {
-    return new TextDecoder('utf-8').decode(uint8);
-  }
-
-  // PDF인 경우
-  if (isPdfFile(file)) {
-    // unpdf가 내부적으로 worker 포함된 pdf.js를 써줘서,
-    // 따로 worker 경로 세팅 필요 없음
-    const pdf = await getDocumentProxy(uint8);
-    const { text } = await extractText(pdf, { mergePages: true });
-
-    const normalized = text.trim();
-    if (!normalized) {
-      throw new Error(
-        'PDF에서 텍스트를 추출하지 못했습니다. (이미지/스캔본 PDF이거나 구조가 특이할 수 있습니다.)',
-      );
-    }
-    return normalized;
-  }
-
-  throw new Error('지원하지 않는 파일 형식입니다.');
-}
-
 
 export async function POST(request: NextRequest) {
   console.log('=== [UPLOAD ROUTE] USING SIGNED URL VERSION + LESSON BUILD ===');
@@ -160,20 +107,8 @@ export async function POST(request: NextRequest) {
         ? parseInt(folderIdRaw, 10)
         : null;
 
-    // 4) 파일 텍스트 읽기 (TXT + PDF 공통)
-    let textContent: string;
-    try {
-      textContent = await extractPlainText(safeFile);
-    } catch (e: any) {
-      console.error('[upload] extractPlainText error:', e);
-      return NextResponse.json(
-        {
-          // e.message를 그대로 노출
-          error: e?.message ?? '파일에서 텍스트를 추출하는 중 오류가 발생했습니다.',
-        },
-        { status: 400 },
-      );
-    }
+    // 4) 파일 텍스트 읽기
+    const textContent = await safeFile.text();
 
     // 5) 1차 LLM 파이프라인 (SentenceRecord[])
     const { sentences, jsonBytes } = await processUserMaterial({
@@ -245,7 +180,6 @@ export async function POST(request: NextRequest) {
           paragraphCount,
           sentenceCount,
           processedAt: new Date().toISOString(),
-          // ✅ 나중에 pdf 관련 정보 넣고 싶으면 여기에 pageCount 같은 것도 넣을 수 있음
         },
       })
       .select()

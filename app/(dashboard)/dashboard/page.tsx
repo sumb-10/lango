@@ -9,11 +9,9 @@ import {
   Upload,
   FileText,
   PenTool,
-  BookOpen,
-  CreditCard,
   MoreVertical,
   FolderPlus,
-  Folder, // 🔹 추가: 폴더 아이콘
+  Folder,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Header } from "@/components/Header";
@@ -49,6 +47,31 @@ interface Stats {
   vocabulary: { dueForReview: number };
 }
 
+// ⭐ NEW: LessonChunk 관련 타입
+type CEFRLevel = "B2" | "C1" | "C2";
+
+type LessonChunkConfigType =
+  | "reading"
+  | "structure"
+  | "vocab"
+  | "background"
+  | "comprehension"
+  | "writing";
+
+interface LessonChunkConfig {
+  type: LessonChunkConfigType;
+  order: number;
+}
+
+const CHUNK_LABEL: Record<LessonChunkConfigType, string> = {
+  reading: "Reading",
+  structure: "Structure",
+  vocab: "Vocab",
+  background: "Background",
+  comprehension: "Comprehension",
+  writing: "Writing",
+};
+
 export default function DashboardPageClient() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -67,6 +90,19 @@ export default function DashboardPageClient() {
   // track processing state per material id
   const [processingIds, setProcessingIds] = useState<number[]>([]);
 
+  // ⭐ NEW: 모달/교재 설정용 상태
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [showLessonModal, setShowLessonModal] = useState(false);
+  const [lessonLevel, setLessonLevel] = useState<CEFRLevel>("C1");
+  const [chunkConfigs, setChunkConfigs] = useState<LessonChunkConfig[]>([
+    { type: "reading", order: 1 },
+    { type: "comprehension", order: 2 },
+    { type: "structure", order: 3 },
+    { type: "vocab", order: 4 },
+    { type: "background", order: 5 },
+    { type: "writing", order: 6 },
+  ]);
+
   const fetchFolderContents = async (folderId: number | null = null) => {
     try {
       setLoadingMaterials(true);
@@ -80,7 +116,6 @@ export default function DashboardPageClient() {
 
       const data = await res.json();
 
-      // 🔹 materials normalize
       const rawMaterials = data?.materials ?? [];
       const normalizedMaterials: Material[] = Array.isArray(rawMaterials)
         ? rawMaterials.map((m: any) => ({
@@ -93,7 +128,6 @@ export default function DashboardPageClient() {
           }))
         : [];
 
-      // 🔹 folders normalize
       const rawFolders = data?.folders ?? [];
       const normalizedFolders: FolderItem[] = Array.isArray(rawFolders)
         ? rawFolders.map((f: any) => ({
@@ -114,26 +148,38 @@ export default function DashboardPageClient() {
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ⭐ CHANGED: 파일 선택 시, 바로 업로드 X → 모달 오픈
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 파일 이름에서 확장자(.txt 등) 제거한 걸 제목으로 사용
+    setPendingFile(file);
+    setShowLessonModal(true);
+
+    // 같은 파일 다시 선택해도 동작하도록 리셋
+    e.target.value = "";
+  };
+
+  // ⭐ NEW: 모달에서 "교재 만들기" 클릭 시 실제 업로드 + lesson 빌드
+  const handleCreateLessonFromPendingFile = async () => {
+    if (!pendingFile) return;
+
+    const file = pendingFile;
     const title = file.name.replace(/\.[^/.]+$/, "");
     const author = "user";
 
     setUploading(true);
 
     try {
-        const formData = new FormData();
-        formData.append("title", title);
-        formData.append("author", author);
-        formData.append("file", file);
-    // 🔴 여기 추가: 현재 폴더 id를 함께 전송
-        if (currentFolderId !== null) {
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("author", author);
+      formData.append("file", file);
+      if (currentFolderId !== null) {
         formData.append("folderId", String(currentFolderId));
-        }
-        // 루트면 안 보내도 되고, 보내고 싶다면 "" 대신 null 처리해도 됨
+      }
+      formData.append("level", lessonLevel);
+      formData.append("chunks", JSON.stringify(chunkConfigs));
 
       const res = await fetch("/api/materials/upload", {
         method: "POST",
@@ -148,36 +194,68 @@ export default function DashboardPageClient() {
 
       const data = await res.json();
       const material = data.material;
+      // const lesson = data.lesson; // 필요하면 나중에 콘솔에서 확인
 
       if (!material?.id) {
         throw new Error("업로드 응답에 material id가 없습니다");
       }
 
-      toast.success("교재가 업로드되고 처리가 시작되었습니다");
+      toast.success("교재가 생성되었습니다.");
 
-      // 목록 갱신 (현재 폴더 기준)
       await fetchFolderContents(currentFolderId);
-      toast.success("교재가 완전히 업로드되었습니다.");
     } catch (err: any) {
       console.error(err);
       toast.error(err?.message || "업로드 실패");
     } finally {
       setUploading(false);
-      // 같은 파일 다시 선택해도 onChange가 잘 호출되도록 리셋
-      e.target.value = "";
+      setPendingFile(null);
+      setShowLessonModal(false);
     }
   };
 
+  // ⭐ NEW: 모달 닫기(취소)
+  const handleCancelLessonModal = () => {
+    setShowLessonModal(false);
+    setPendingFile(null);
+  };
+
+  // ⭐ NEW: chunk on/off 토글
+  const handleToggleChunk = (type: LessonChunkConfigType) => {
+    setChunkConfigs((prev) => {
+      const exists = prev.find((c) => c.type === type);
+      if (exists) {
+        // 이미 있으면 제거
+        return prev.filter((c) => c.type !== type);
+      }
+      // 없으면 맨 뒤에 추가
+      const maxOrder = prev.reduce(
+        (max, c) => (c.order > max ? c.order : max),
+        0
+      );
+      return [...prev, { type, order: maxOrder + 1 }];
+    });
+  };
+
+  // ⭐ NEW: chunk order 변경
+  const handleChangeChunkOrder = (
+    type: LessonChunkConfigType,
+    orderStr: string
+  ) => {
+    const nextOrder = parseInt(orderStr, 10);
+    if (Number.isNaN(nextOrder)) return;
+    setChunkConfigs((prev) =>
+      prev.map((c) =>
+        c.type === type ? { ...c, order: nextOrder } : c
+      )
+    );
+  };
+
   useEffect(() => {
-    // 처음에는 루트 폴더 기준
     fetchFolderContents(null);
-    //fetchStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 🔹 여기서부터 조건부 return
 
-  // 1) 세션 로딩 중
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg">
@@ -186,7 +264,6 @@ export default function DashboardPageClient() {
     );
   }
 
-  // 2) 세션 확인 끝났는데 user 없음
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-bg gap-4">
@@ -215,9 +292,7 @@ export default function DashboardPageClient() {
         throw new Error(errBody?.message || "Processing failed");
       }
       toast.success("교재 처리가 시작되었습니다");
-      // refresh list & stats (현재 폴더 그대로)
       await fetchFolderContents(currentFolderId);
-      //await fetchStats();
     } catch (err: any) {
       console.error(err);
       toast.error(err?.message || "처리 실패");
@@ -226,40 +301,37 @@ export default function DashboardPageClient() {
     }
   };
 
-    const handleCreateFolderClick = async () => {
-    // 간단하게 window.prompt로 폴더 이름 입력 받기
+  const handleCreateFolderClick = async () => {
     const name = window.prompt("새 폴더 이름을 입력하세요.");
     if (!name || !name.trim()) {
-        return; // 취소 또는 공백이면 아무 것도 안 함
+      return;
     }
 
     try {
-        const res = await fetch("/api/folders", {
+      const res = await fetch("/api/folders", {
         method: "POST",
         credentials: "include",
         headers: {
-            "Content-Type": "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            name: name.trim(),
-            parentId: currentFolderId, // 🔴 현재 보고 있는 폴더 id → parent_id로 사용
+          name: name.trim(),
+          parentId: currentFolderId,
         }),
-        });
+      });
 
-        if (!res.ok) {
+      if (!res.ok) {
         const errBody = await res.json().catch(() => null);
         throw new Error(errBody?.error || "폴더 생성에 실패했습니다.");
-        }
+      }
 
-        toast.success("새 폴더가 생성되었습니다.");
-
-        // 현재 폴더 내용 다시 로드
-        await fetchFolderContents(currentFolderId);
+      toast.success("새 폴더가 생성되었습니다.");
+      await fetchFolderContents(currentFolderId);
     } catch (err: any) {
-        console.error(err);
-        toast.error(err?.message || "폴더 생성 중 오류가 발생했습니다.");
+      console.error(err);
+      toast.error(err?.message || "폴더 생성 중 오류가 발생했습니다.");
     }
-    };
+  };
 
   const handleFolderClick = (folderId: number) => {
     fetchFolderContents(folderId);
@@ -274,12 +346,11 @@ export default function DashboardPageClient() {
       <div className="flex-1 flex flex-col">
         <Header variant="dashboard" />
 
-        {/* Main Content */}
         <main className="flex-1 px-4 md:px-8 py-6 overflow-auto">
           <input
             ref={fileInputRef}
             type="file"
-            accept=".txt"
+            accept=".txt, .pdf"
             className="hidden"
             onChange={handleFileChange}
           />
@@ -307,7 +378,7 @@ export default function DashboardPageClient() {
                 <Upload className="h-8 w-8 text-primary mb-3" />
                 <h3 className="font-semibold text-ink mb-1">새 교재 업로드</h3>
                 <p className="text-sm text-muted-ink">
-                  TXT 파일을 업로드하여 학습을 시작하세요
+                  TXT / PDF 파일을 업로드하여 학습을 시작하세요
                 </p>
               </button>
 
@@ -321,17 +392,9 @@ export default function DashboardPageClient() {
                   작문을 제출하고 AI 평가를 받으세요
                 </p>
               </Link>
-              {
-                /* 추후 구현 예정
-                <Link href="/vocabulary" className="block p-6 bg-surface border-2 border-dashed border-primary/40 hover:border-primary/60 rounded-lg transition-all group">
-                    <BookOpen className="h-8 w-8 text-primary mb-3" />
-                    <h3 className="font-semibold text-ink mb-1">단어장 복습</h3>
-                    <p className="text-sm text-muted-ink">단어를 복습해보아요.</p>
-                </Link>*/
-              }
             </div>
 
-            {/* Materials Grid */}
+            {/* Materials */}
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-ink">내 교재</h2>
@@ -359,9 +422,8 @@ export default function DashboardPageClient() {
                 </div>
               )}
 
-              {/* 목록형 리스트: 폴더 먼저, 그 다음 파일 */}
               <div className="space-y-0">
-                {/* 🔹 폴더들 (항상 상단에 모아 표시) */}
+                {/* 폴더들 */}
                 {folders.map((folder) => (
                   <button
                     key={`folder-${folder.id}`}
@@ -379,22 +441,19 @@ export default function DashboardPageClient() {
                         </p>
                       </div>
                     </div>
-                    {/* 우측 여백만 (나중에 폴더 액션 추가 가능) */}
                   </button>
                 ))}
 
-                {/* 🔹 파일(materials) */}
+                {/* 파일(materials) */}
                 {materials.map((material) => (
                   <div
                     key={material.id}
                     className="group flex items-center justify-between border border-lango bg-surface px-4 py-3 hover:border-primary/50 hover:bg-white/70 transition-all"
                   >
-                    {/* 왼쪽: 아이콘 + 제목 + 저자 */}
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-highlight group-hover:bg-primary/15 transition-colors">
                         <FileText className="h-6 w-6 text-primary" />
                       </div>
-                      {/* 수준(CEFR) */}
                       {material.cefrLevel && (
                         <span className="px-2 py-0.5 text-xs rounded-full bg-highlight text-primary border border-primary/20">
                           {material.cefrLevel}
@@ -410,9 +469,7 @@ export default function DashboardPageClient() {
                       </div>
                     </div>
 
-                    {/* 오른쪽: 버튼 + 햄버거 */}
                     <div className="flex items-center gap-3 flex-shrink-0">
-                      {/* 액션 버튼 */}
                       {material.status === "uploaded" && (
                         <Button
                           size="sm"
@@ -436,7 +493,6 @@ export default function DashboardPageClient() {
                         </Link>
                       )}
 
-                      {/* 햄버거 메뉴 */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <button
@@ -447,10 +503,7 @@ export default function DashboardPageClient() {
                             <MoreVertical className="h-4 w-4 text-muted-ink" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="w-40"
-                        >
+                        <DropdownMenuContent align="end" className="w-40">
                           <DropdownMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
@@ -492,6 +545,124 @@ export default function DashboardPageClient() {
           </div>
         </main>
       </div>
+
+      {/* ⭐ NEW: Lesson 구성 모달 */}
+      {showLessonModal && pendingFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-lg rounded-xl bg-surface p-6 shadow-lg border border-lango">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-ink">
+                  새 교재 구성 설정
+                </h2>
+                <p className="text-xs text-muted-ink mt-1">
+                  {pendingFile.name} 파일을 기반으로 LessonJson을 생성합니다.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelLessonModal}
+                className="text-muted-ink hover:text-ink text-sm"
+              >
+                닫기
+              </button>
+            </div>
+
+            {/* Level 선택 */}
+            <div className="mb-4">
+              <p className="text-xs font-medium text-muted-ink mb-1">
+                CEFR 레벨
+              </p>
+              <div className="flex gap-2">
+                {(["B2", "C1", "C2"] as CEFRLevel[]).map((lv) => (
+                  <button
+                    key={lv}
+                    type="button"
+                    onClick={() => setLessonLevel(lv)}
+                    className={`px-3 py-1 rounded-full text-xs border ${
+                      lessonLevel === lv
+                        ? "bg-primary text-white border-primary"
+                        : "bg-surface text-ink border-lango"
+                    }`}
+                  >
+                    {lv}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Chunk 구성 선택 */}
+            <div className="mb-4">
+              <p className="text-xs font-medium text-muted-ink mb-2">
+                포함할 학습 요소 및 순서
+              </p>
+              <div className="space-y-2">
+                {(Object.keys(CHUNK_LABEL) as LessonChunkConfigType[]).map(
+                  (type) => {
+                    const exist = chunkConfigs.find((c) => c.type === type);
+                    return (
+                      <div
+                        key={type}
+                        className="flex items-center justify-between gap-2 border border-lango rounded-lg px-3 py-2 bg-white/60"
+                      >
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={!!exist}
+                            onChange={() => handleToggleChunk(type)}
+                          />
+                          <span className="text-xs text-ink">
+                            {CHUNK_LABEL[type]}
+                          </span>
+                        </label>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[11px] text-muted-ink">
+                            순서
+                          </span>
+                          <input
+                            type="number"
+                            min={1}
+                            value={exist?.order ?? ""}
+                            onChange={(e) =>
+                              handleChangeChunkOrder(type, e.target.value)
+                            }
+                            disabled={!exist}
+                            className="w-14 border border-lango rounded px-1 py-0.5 text-xs"
+                          />
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+              <p className="mt-1 text-[11px] text-muted-ink">
+                숫자가 작은 순서대로 Lesson에 배치됩니다. (동일한 숫자는 허용하지만
+                가능한 겹치지 않게 설정하는 것을 추천)
+              </p>
+            </div>
+
+            {/* 버튼 */}
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={handleCancelLessonModal}
+                className="text-xs px-3 py-1 h-8"
+              >
+                취소
+              </Button>
+              <Button
+                type="button"
+                onClick={handleCreateLessonFromPendingFile}
+                disabled={uploading}
+                className="text-xs px-4 py-1 h-8 bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+              >
+                {uploading ? "생성 중..." : "교재 만들기"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
